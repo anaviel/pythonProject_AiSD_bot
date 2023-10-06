@@ -9,17 +9,27 @@ database = sqlite3.connect('rasp.db')
 cursor = database.cursor()
 
 def rasp_create():
-    #Создание таблицы (таблица уже создана, эту функцию больше вызывать не надо)
-    cursor.execute("""CREATE TABLE IF NOT EXISTS articles (
+    #Создание таблицы с расписанием
+    cursor.execute("""CREATE TABLE IF NOT EXISTS classes (
         date text,
         napr text,
         coach text,
         visitor text
     )""")
 
+def prob_create():
+    #Создание таблицы с оплаченными пробными занятиями
+    cursor.execute("""CREATE TABLE IF NOT EXISTS prob_classes (
+        date_today text,
+        napr text,
+        coach text,
+        visitor text
+    )""")
 
-#Вывод БД
-#cursor.execute("SELECT * FROM articles")
+prob_create()
+
+#Вывод таблицы с расписанием
+#cursor.execute("SELECT * FROM classes")
 #print(cursor.fetchall())
 
 database.commit()
@@ -32,4 +42,4 @@ def start(message):
     bot.send_message(message.chat.id, 'Тест')
 
 
-bot.polling(none_stop=True)
+#bot.polling(none_stop=True)
