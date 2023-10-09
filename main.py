@@ -48,6 +48,10 @@ def prob_classes(date, napr, coach, visitor):
     date_today = datetime.now().date()
     cursor.execute("INSERT INTO prob_classes (date_today, date, napr, coach, visitor) VALUES (?, ?, ?, ?, ?)", (date_today, date, napr, coach, visitor))
 
+def rasp_show(date):
+   # Вывод расписания
+    cursor.execute("SELECT DISTINCT napr, coach FROM classes WHERE date = ?", (date,))
+    print(cursor.fetchall())
 
 # Удаление данных
 #cursor.execute("DELETE FROM classes")
@@ -76,7 +80,6 @@ print(cursor.fetchall())
 
 database.commit()
 database.close()
-
 
 @bot.message_handler(commands=['start'])
 def start(message):
