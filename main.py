@@ -34,7 +34,7 @@ def prob_create():
 def insert_rasp(date, napr, coach, visitor='-'):
     # Добавление расписания
     cursor.execute("INSERT INTO classes (date, napr, coach, visitor) VALUES (?, ?, ?, ?)", (date, napr, coach, visitor))
-
+    database.commit()
 
 def update_visitor(date, napr, coach, visitor):
     # Замена 4-го параметра посетилеля на реального человека, когда он записывается
@@ -45,11 +45,13 @@ def update_visitor(date, napr, coach, visitor):
                    (visitor, row[0]))
     cursor.execute("SELECT * FROM classes")
     print(cursor.fetchall())
+    database.commit()
 
 def prob_classes(date, napr, coach, visitor):
     # Добавление информации о записи на пробное занятие в таблицу
     date_today = datetime.now().date()
     cursor.execute("INSERT INTO prob_classes (date_today, date, napr, coach, visitor) VALUES (?, ?, ?, ?, ?)", (date_today, date, napr, coach, visitor))
+    database.commit()
 
 def rasp_show(date):
    # Вывод расписания
