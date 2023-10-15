@@ -106,7 +106,8 @@ name = ''
 def start(message):
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
     botton1 = types.KeyboardButton('Записаться')
-    markup.row(botton1)
+    botton2 = types.KeyboardButton('Добавить расписание')
+    markup.row(botton1, botton2)
     bot.send_message(message.chat.id, 'Бот для фитнес-студии', reply_markup=markup)
     if name == '':
         bot.send_message(message.chat.id, 'Перед тем, как начать пользоваться ботом, пожалуйста, укажите свои полные фамилию, имя и отчество')
@@ -128,6 +129,9 @@ def menu(message):
             button = types.InlineKeyboardButton(date, callback_data=butt)
             markup.add(button)
         bot.send_message(message.chat.id, 'Выберите день:', reply_markup=markup)
+    elif message.text == 'Добавить расписание':
+        bot.send_message(message.chat.id, 'Введите сообщение в формате:\nгггг-мм-дд_Направление_Тренер')
+        bot.register_next_step_handler(message, add_rasp)
 
 @bot.callback_query_handler(func=lambda callback: 'date:' in callback.data)
 def callback_dates_show(callback):
@@ -156,11 +160,19 @@ def callback_reg(callback):
     coach = ''.join(cursor.fetchone())
     global name
     update_visitor(date, napr, coach, name)
-    bot.send_message(callback.message.chat.id, f'Вы успешно записаны на {date} {napr}')
+    bot.send_message(callback.message.chat.id, f'Вы, {name}, успешно записаны {date} на {napr}')
 
 def new_name(message):
     global name
     name = message.text
     bot.send_message(message.chat.id, 'Ваше имя успешно сохранено.')
+
+def add_rasp(message):
+    data = message.text.split('_')[0]
+    napr = message.text.split('_')[1]
+    coach = message.text.split('_')[2]
+    insert_rasp(data, napr, coach)
+    bot.send_message(message.chat.id, f"В расписание добавилась запись со следующими параметрами:\nДата: {data}\nНаправление: {napr}\nТренер: {coach}")
+
 
 bot.polling(none_stop=True)
