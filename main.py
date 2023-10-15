@@ -43,6 +43,8 @@ def update_visitor(date, napr, coach, visitor):
     row = cursor.fetchone()
     cursor.execute("UPDATE classes SET visitor = ? WHERE rowid = ?",
                    (visitor, row[0]))
+    cursor.execute("SELECT * FROM classes")
+    print(cursor.fetchall())
 
 def prob_classes(date, napr, coach, visitor):
     # Добавление информации о записи на пробное занятие в таблицу
@@ -96,6 +98,7 @@ print(cursor.fetchall())
 
 database.commit()
 
+name = ''
 
 @bot.message_handler(commands=['start'])
 def start(message):
@@ -103,6 +106,9 @@ def start(message):
     botton1 = types.KeyboardButton('Записаться')
     markup.row(botton1)
     bot.send_message(message.chat.id, 'Бот для фитнес-студии', reply_markup=markup)
+    if name == '':
+        bot.send_message(message.chat.id, 'Перед тем, как начать пользоваться ботом, пожалуйста, укажите свои полные фамилию, имя и отчество')
+        bot.register_next_step_handler(message, new_name)
 
 @bot.message_handler(content_types=['text'])
 def menu(message):
@@ -135,7 +141,6 @@ def callback_dates_show(callback):
     for i in rasp_list:
         napr = i.split(':')[0][1:].split(',')[0]
         reg = 'reg:' + date + ':' + napr
-        print(len(reg.encode('utf-8')))
         button = types.InlineKeyboardButton(napr, callback_data=reg)
         markup.add(button)
     bot.send_message(callback.message.chat.id, rasp_str, reply_markup=markup)
@@ -146,11 +151,14 @@ def callback_reg(callback):
     date = data_parts[1]
     napr = data_parts[2]
     cursor.execute("SELECT coach FROM classes WHERE date = ? AND napr = ?", (date, napr))
-    coach = cursor.fetchone()
+    coach = ''.join(cursor.fetchone())
+    global name
+    update_visitor(date, napr, coach, name)
+    bot.send_message(callback.message.chat.id, f'Вы успешно записаны на {date} {napr}')
 
-
-
-#date, napr, coach, visitor
-
+def new_name(message):
+    global name
+    name = message.text
+    bot.send_message(message.chat.id, 'Ваше имя успешно сохранено.')
 
 bot.polling(none_stop=True)
