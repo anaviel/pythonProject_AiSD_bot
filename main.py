@@ -56,7 +56,7 @@ def rasp_show(date):
     rasp_list = []
     for row in rows:
         napr, coach = row
-        rasp_list.append(f"Направление: {napr}, Тренер: {coach}")
+        rasp_list.append(f"🤍{napr}, тренер: {coach}")
     return rasp_list
 
 # Удаление данных
@@ -108,7 +108,7 @@ def start(message):
 def menu(message):
 
     if message.text == 'Записаться':
-        markup = types.InlineKeyboardMarkup(row_width=3)
+        markup = types.InlineKeyboardMarkup()
         cursor.execute("SELECT DISTINCT date FROM classes")
         dates_ = cursor.fetchall()
         dates = []
@@ -116,17 +116,41 @@ def menu(message):
             for d in date:
                 dates.append(d)
         for date in dates:
-            butt = 'date_button:' + date
-            botton = types.InlineKeyboardButton(date, callback_data=butt)
-            markup.add(botton)
+            butt = 'date:' + date
+            button = types.InlineKeyboardButton(date, callback_data=butt)
+            markup.add(button)
         bot.send_message(message.chat.id, 'Выберите день:', reply_markup=markup)
 
-@bot.callback_query_handler(func=lambda callback: 'date_button' in callback.data)
-def callback_message(callback):
+@bot.callback_query_handler(func=lambda callback: 'date:' in callback.data)
+def callback_dates_show(callback):
+
+    markup = types.InlineKeyboardMarkup()
     date = callback.data.split(':')[1]
     rasp_list = rasp_show(date)
-    message = "\n".join(rasp_list)
-    bot.send_message(callback.message.chat.id, message)
+    rasp_str = f'Информация о направлениях на {date}:\n\n'
+    for string in rasp_list:
+        rasp_str += string
+        rasp_str += '\n'
+    rasp_str += '\nВыберите направление, на которое хотели бы записаться:'
+    for i in rasp_list:
+        napr = i.split(':')[0][1:].split(',')[0]
+        reg = 'reg:' + date + ':' + napr
+        print(len(reg.encode('utf-8')))
+        button = types.InlineKeyboardButton(napr, callback_data=reg)
+        markup.add(button)
+    bot.send_message(callback.message.chat.id, rasp_str, reply_markup=markup)
+
+@bot.callback_query_handler(func=lambda callback: 'reg:' in callback.data)
+def callback_reg(callback):
+    data_parts = callback.data.split(':')
+    date = data_parts[1]
+    napr = data_parts[2]
+    cursor.execute("SELECT coach FROM classes WHERE date = ? AND napr = ?", (date, napr))
+    coach = cursor.fetchone()
+
+
+
+#date, napr, coach, visitor
 
 
 bot.polling(none_stop=True)
