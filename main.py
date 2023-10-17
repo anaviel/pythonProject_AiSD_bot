@@ -107,10 +107,11 @@ def start(message):
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
     botton1 = types.KeyboardButton('Записаться')
     botton2 = types.KeyboardButton('Добавить расписание')
-    markup.row(botton1, botton2)
+    botton3 = types.KeyboardButton('Отменить занятие')
+    markup.row(botton1, botton2, botton3)
     bot.send_message(message.chat.id, 'Бот для фитнес-студии', reply_markup=markup)
     if name == '':
-        bot.send_message(message.chat.id, 'Перед тем, как начать пользоваться ботом, пожалуйста, укажите свои полные фамилию, имя и отчество')
+        bot.send_message(message.chat.id, 'Перед тем, как начать пользоваться ботом, пожалуйста, укажите свои полные фамилию, имя и отчество.')
         bot.register_next_step_handler(message, new_name)
 
 @bot.message_handler(content_types=['text'])
@@ -132,6 +133,37 @@ def menu(message):
     elif message.text == 'Добавить расписание':
         bot.send_message(message.chat.id, 'Введите сообщение в формате:\nгггг-мм-дд_Направление_Тренер')
         bot.register_next_step_handler(message, add_rasp)
+    elif message.text == 'Отменить занятие':
+        visitor = name
+        cursor.execute("SELECT date, napr FROM classes WHERE visitor = ?", (visitor,))
+        markup = types.InlineKeyboardMarkup()
+        dates_napr_ = cursor.fetchall()
+        dates_napr = []
+        for d_n in dates_napr_:
+            dates_napr.append(d_n)
+        print(dates_napr)
+        for d_n in dates_napr:
+            date = d_n[0]
+            napr = d_n[1]
+            butt = 'date_napr:' + date + ':' + napr
+            name_butt = date + ' ' + napr
+            button = types.InlineKeyboardButton(name_butt, callback_data=butt)
+            markup.add(button)
+        bot.send_message(message.chat.id, 'Какое направление хотите отменить?', reply_markup=markup)
+
+@bot.callback_query_handler(func=lambda callback: 'date_napr:' in callback.data)
+def callback_cancel(callback):
+    global name
+    date_napr = callback.data.split(':')
+    date = date_napr[1]
+    napr = date_napr[2]
+    cursor.execute("SELECT coach FROM classes WHERE date = ? AND napr = ?", (date, napr))
+    coach = ''.join(cursor.fetchone())
+    cursor.execute("UPDATE classes SET visitor = '-' WHERE date = ? AND napr = ? AND coach = ?",
+                   (date, napr, coach))
+    bot.send_message(callback.message.chat.id, f'Запись на {date}, "{napr}" успешно отменена.')
+    cursor.execute("SELECT * FROM classes")
+    print(cursor.fetchall())
 
 @bot.callback_query_handler(func=lambda callback: 'date:' in callback.data)
 def callback_dates_show(callback):
@@ -173,6 +205,9 @@ def add_rasp(message):
     coach = message.text.split('_')[2]
     insert_rasp(data, napr, coach)
     bot.send_message(message.chat.id, f"В расписание добавилась запись со следующими параметрами:\nДата: {data}\nНаправление: {napr}\nТренер: {coach}")
+
+
+
 
 
 bot.polling(none_stop=True)
