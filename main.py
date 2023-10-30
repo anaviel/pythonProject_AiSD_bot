@@ -156,6 +156,10 @@ class User():
     def personal_account(self, message):
         personal_account(message)
 
+    # "Помощь"
+    def help(self, message):
+        help(message)
+
 
 name = ''
 var = 1269188609
@@ -179,7 +183,8 @@ def start(message):
         button1 = types.KeyboardButton('Записаться')
         button3 = types.KeyboardButton('Отменить запись')
         button5 = types.KeyboardButton('Личный кабинет')
-        markup2.row(button1, button3, button5)
+        button6 = types.KeyboardButton('Помощь')
+        markup2.row(button1, button3, button5, button6)
         bot.send_message(message.chat.id, 'Бот для фитнес-студии', reply_markup=markup2)
         if name == '':
             bot.send_message(message.chat.id, 'Перед тем, как начать пользоваться ботом, пожалуйста, укажите свои полные фамилию, имя и отчество.')
@@ -197,6 +202,8 @@ def menu(message):
             user.cancel_registration_for_training(message)
         elif message.text == 'Личный кабинет':
             user.personal_account(message)
+        elif message.text == 'Помощь':
+            user.help(message)
     # если боту написал админ
     elif user_id == var:
         admin = Admin(user_id)
@@ -264,24 +271,31 @@ def callback_reg(callback):
     data_parts = callback.data.split('_')
     date = data_parts[1]
     napr = data_parts[2]
-    cursor.execute("SELECT coach FROM classes WHERE date = ? AND napr = ?", (date, napr))
-    coach = ''.join(cursor.fetchone())
     global name
-    update_visitor(date, napr, coach, name)
-    cursor.execute("SELECT subscription FROM subscription_inf WHERE visitor = ?",
-                   (name,))
-    result = cursor.fetchone()
-    new_subscription = result[0] - 1
-    cursor.execute("UPDATE subscription_inf SET subscription = ? WHERE visitor = ?",
-                   (new_subscription, name))
-    database.commit()
-    bot.send_message(callback.message.chat.id, f'Вы успешно записаны {date} на {napr}.\nС баланса Вашего абонемента было списано одно занятие.')
-
+    if is_user_enter(name, date, napr):
+        bot.send_message(callback.message.chat.id, f'Вы уже записаны на занятие {date} ({napr}).')
+    else:
+        cursor.execute("SELECT coach FROM classes WHERE date = ? AND napr = ?", (date, napr))
+        coach = ''.join(cursor.fetchone())
+        update_visitor(date, napr, coach, name)
+        cursor.execute("SELECT subscription FROM subscription_inf WHERE visitor = ?", (name,))
+        result = cursor.fetchone()
+        new_subscription = result[0] - 1
+        cursor.execute("UPDATE subscription_inf SET subscription = ? WHERE visitor = ?", (new_subscription, name))
+        database.commit()
+        bot.send_message(callback.message.chat.id,
+                         f'Вы успешно записаны {date} на {napr}.\nС баланса Вашего абонемента было списано одно занятие.')
 
 def new_name(message):
     global name
     name = message.text
     bot.send_message(message.chat.id, 'Ваше имя успешно сохранено.')
+
+def is_user_enter(name, date, napr):
+    cursor = database.cursor()
+    cursor.execute("SELECT * FROM classes WHERE date = ? AND napr = ? AND visitor= ?", (date, napr, name))
+    result = cursor.fetchall()
+    return len(result) > 0
 
 #def add_rasp(message):
 #    date = message.text.split('_')[0]
@@ -348,6 +362,19 @@ def personal_account(message):
             bot.send_photo(message.chat.id, photo,
                            caption=f'🤍Уважаемая, {name}!\n\n    Количество занятий на балансе Вашего абонемента: {result}\n\n🎀Занятия, на которые Вы записаны:\n{classes}')
 
+# функция, которая вызывается при нажатии пользователем на кнопку "Помощь"
+def help(message):
+    bot.send_message(message.chat.id, '''Инструкция по пользованию кнопками:
+            \n\n«Записаться» 
+        При нажатии на данную кнопку, Вам будет предложено выбрать удобный для Вас день для записи, после чего Вы сможете выбрать желаемое направление.
+        После выбора направления Вы автоматически будете записаны на занятие, при этом со счёта Вашего абонемента будет списано одно занятие. 
+            \n\n«Отменить занятие» 
+        Данная опция позволяет осуществить отмену записи. Вы увидите перечень занятий, на которые записаны, и сможете нажать на любое из них для удаления записи. 
+        При этом на счёт Вашего абонемента будет возвращено одно занятие.
+            \n\n«Личный кабинет» 
+        При нажатии на данную кнопку Вы сможете посмотреть перечень занятий, на которые записались, а также баланс Вашего абонемента. 
+        Если Вы собираетесь посетить студию впервые, то для Вас появится возможность оформить и оплатить пробное занятие. 
+            ''')
 
 # функция, которая вызывается при нажатии админом на кнопку "Обновить прайс-лист"
 def update_price_list(message):
@@ -404,7 +431,5 @@ def replenish_subscription(message, callback):
     except:
         bot.send_message(message.chat.id, "Данные введены некорректно. Попробуйте снова.")
         callback_add_subscription(callback)
-
-
 
 bot.polling(none_stop=True)
