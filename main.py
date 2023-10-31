@@ -10,6 +10,7 @@ database = sqlite3.connect('rasp.db', check_same_thread=False)
 # Создание курсора
 cursor = database.cursor()
 
+
 def rasp_create():
     # Создание таблицы с расписанием
     cursor.execute("""CREATE TABLE IF NOT EXISTS classes (
@@ -90,10 +91,10 @@ def rasp_show(date):
 
 
 # Удаление данных
-#cursor.execute("DELETE FROM classes")
+# cursor.execute("DELETE FROM classes")
 
 # Удаление таблицы
-#cursor.execute("DROP TABLE subscription_inf")
+# cursor.execute("DROP TABLE subscription_inf")
 
 # для себя
 # cursor.execute("DELETE FROM classes WHERE rowid = (SELECT MAX(rowid) FROM classes)")
@@ -130,7 +131,6 @@ insert_rasp('02-11-2023', '16:00 Пилатес', 'Кузнецова Екате
 insert_rasp('02-11-2023', '16:00 Пилатес', 'Кузнецова Екатерина Александровна')
 """
 
-
 # Вывод таблицы с расписанием
 cursor.execute("SELECT * FROM classes")
 print(cursor.fetchall())
@@ -144,9 +144,17 @@ cursor.execute("SELECT * FROM subscription_inf")
 print(cursor.fetchall())
 
 
+# класс для админов
 class Admin:
+    _admin_id_1: int = 1269188609
+    _admin_id_2: int = 961443903
+    admin_used: int
+
     def __init__(self, user_id):
-        self.user_id = user_id
+        if (user_id == self._admin_id_1) or (user_id == self._admin_id_2):
+            self.admin_used = user_id
+        else:
+            self.admin_used = 0
 
     # "Добавление расписания"
     def add_rasp(self, message, date, napr, coach):
@@ -162,8 +170,20 @@ class Admin:
     def update_price_list(self, message):
         update_price_list(message)
 
+    # клавиатура для админа
+    def keyboard_admin(self, message):
+        markup1 = types.ReplyKeyboardMarkup(resize_keyboard=True)
+        button1 = types.KeyboardButton('Добавить расписание')
+        button2 = types.KeyboardButton('Абонементы')
+        button3 = types.KeyboardButton('Обновить прайс-лист')
+        markup1.row(button1, button2, button3)
+        bot.send_message(message.chat.id, 'Добро пожаловать, администратор!)', reply_markup=markup1)
 
+
+# класс для пользователей, которые посещают студию
 class User:
+    user_id: int
+
     def __init__(self, user_id):
         self.user_id = user_id
 
@@ -183,28 +203,8 @@ class User:
     def help(self, message):
         help(message)
 
-
-name = ''
-var = 1269188609
-var2 = 961443903
-
-
-@bot.message_handler(commands=['start'])
-def start(message):
-    user_id = message.from_user.id
-
-    if user_id == var:
-        markup1 = types.ReplyKeyboardMarkup(resize_keyboard=True)
-        button1 = types.KeyboardButton('Добавить расписание')
-        button2 = types.KeyboardButton('Абонементы')
-        button3 = types.KeyboardButton('Обновить прайс-лист')
-        markup1.row(button1, button2, button3)
-        bot.send_message(message.chat.id, 'Добро пожаловать, администратор!)', reply_markup=markup1)
-        if name == '':
-            bot.send_message(message.chat.id,
-                             'Перед тем, как начать пользоваться ботом, пожалуйста, укажите свои полные фамилию, имя и отчество.')
-            bot.register_next_step_handler(message, new_name)
-    else:
+    # клавиатура для пользователя
+    def keyboard_user(self, message):
         markup2 = types.ReplyKeyboardMarkup(resize_keyboard=True)
         button1 = types.KeyboardButton('Записаться')
         button3 = types.KeyboardButton('Отменить запись')
@@ -218,11 +218,62 @@ def start(message):
             bot.register_next_step_handler(message, new_name)
 
 
+# класс для новых пользователей, которые первый раз придут в студию
+class New_User:
+    new_user_id: int
+
+    def __init__(self, user_id):
+        self.new_user_id = user_id
+
+    # "Оформить пробное занятие"
+    # def ...(self, message):
+    #    ...
+
+    # "Личный кабинет"
+    # def personal_account(self, message):
+    #    personal_account(message)
+
+    # клавиатура для нового пользователя
+    #def keyboard_new_user(self, message):
+    #    ...
+
+
+name = ''
+
+
+@bot.message_handler(commands=['start'])
+def start(message):
+    user_id = message.from_user.id
+    admin = Admin(user_id)
+    # если боту написал один из админов
+    if admin.admin_used == user_id:
+        # показываем клавиатуру для него
+        admin.keyboard_admin(message)
+    # если боту написал не админ, а пользователь
+    elif admin.admin_used == 0:
+        user = User(user_id)
+        # показываем клавиатуру для пользователя
+        user.keyboard_user(message)
+
+
 @bot.message_handler(content_types=['text'])
 def menu(message):
     user_id = message.from_user.id
+    admin = Admin(user_id)
+    # если боту написал админ
+    if admin.admin_used == user_id:
+        if message.text == 'Добавить расписание':
+            bot.send_message(message.chat.id, 'Введите сообщение в формате:\nдд-мм-гггг_Направление_Тренер')
+            bot.register_next_step_handler(message, lambda msg: admin.add_rasp(msg, msg.text.split('_')[0],
+                                                                               msg.text.split('_')[1],
+                                                                               msg.text.split('_')[2]))
+        elif message.text == 'Абонементы':
+            admin.subscription(message)
+        elif message.text == 'Обновить прайс-лист':
+            bot.send_message(message.chat.id, 'Пожалуйста, отправьте изображение обновлённого прайс-листа.')
+            bot.register_next_step_handler(message, admin.update_price_list)
     # если боту написал пользователь
-    if user_id != var:
+    else:
         user = User(user_id)
         if message.text == 'Записаться':
             user.sign_up_for_training(message)
@@ -232,19 +283,6 @@ def menu(message):
             user.personal_account(message)
         elif message.text == 'Помощь':
             user.help(message)
-    # если боту написал админ
-    elif user_id == var:
-        admin = Admin(user_id)
-        if message.text == 'Добавить расписание':
-            bot.send_message(message.chat.id, 'Введите сообщение в формате:\nдд-мм-гг_Направление_Тренер')
-            bot.register_next_step_handler(message, lambda msg: admin.add_rasp(msg, msg.text.split('_')[0],
-                                                                               msg.text.split('_')[1],
-                                                                               msg.text.split('_')[2]))
-        elif message.text == 'Абонементы':
-            admin.subscription(message)
-        elif message.text == 'Обновить прайс-лист':
-            bot.send_message(message.chat.id, 'Пожалуйста, отправьте изображение обновлённого прайс-листа.')
-            bot.register_next_step_handler(message, admin.update_price_list)
 
 
 @bot.callback_query_handler(func=lambda callback: 'add_subscription' in callback.data)
@@ -475,8 +513,6 @@ def replenish_subscription(message, callback):
     except:
         bot.send_message(message.chat.id, "Данные введены некорректно. Попробуйте снова.")
         callback_add_subscription(callback)
-
-
 
 
 bot.polling(none_stop=True)
