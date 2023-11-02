@@ -91,7 +91,7 @@ def rasp_show(date):
 
 
 # Удаление данных
-# cursor.execute("DELETE FROM classes")
+cursor.execute("DELETE FROM classes")
 
 # Удаление таблицы
 # cursor.execute("DROP TABLE subscription_inf")
@@ -100,7 +100,7 @@ def rasp_show(date):
 # cursor.execute("DELETE FROM classes WHERE rowid = (SELECT MAX(rowid) FROM classes)")
 
 # Заполнение таблицы
-"""
+'''
 insert_rasp('01-11-2023', '12:00 Растяжка', 'Иванова Александра Михайловна')
 insert_rasp('01-11-2023', '12:00 Растяжка', 'Иванова Александра Михайловна')
 insert_rasp('01-11-2023', '12:00 Растяжка', 'Иванова Александра Михайловна')
@@ -129,7 +129,7 @@ insert_rasp('02-11-2023', '16:00 Пилатес', 'Кузнецова Екате
 insert_rasp('02-11-2023', '16:00 Пилатес', 'Кузнецова Екатерина Александровна')
 insert_rasp('02-11-2023', '16:00 Пилатес', 'Кузнецова Екатерина Александровна')
 insert_rasp('02-11-2023', '16:00 Пилатес', 'Кузнецова Екатерина Александровна')
-"""
+'''
 
 # Вывод таблицы с расписанием
 cursor.execute("SELECT * FROM classes")
@@ -162,6 +162,10 @@ class Admin:
         bot.send_message(message.chat.id,
                          f"В расписание добавилась запись со следующими параметрами:\nДата: {date}\nНаправление: {napr}\nТренер: {coach}")
 
+    # "Редактировать расписание"
+    def edit_rasp(self, message):
+        edit_rasp(message)
+
     # "Абонементы"
     def subscription(self, message):
         subscription(message)
@@ -174,9 +178,11 @@ class Admin:
     def keyboard_admin(self, message):
         markup1 = types.ReplyKeyboardMarkup(resize_keyboard=True)
         button1 = types.KeyboardButton('Добавить расписание')
-        button2 = types.KeyboardButton('Абонементы')
-        button3 = types.KeyboardButton('Обновить прайс-лист')
-        markup1.row(button1, button2, button3)
+        button2 = types.KeyboardButton('Редактировать расписание')
+        button3 = types.KeyboardButton('Абонементы')
+        button4 = types.KeyboardButton('Обновить прайс-лист')
+        markup1.row(button1, button2)
+        markup1.row(button3, button4)
         bot.send_message(message.chat.id, 'Добро пожаловать, администратор!)', reply_markup=markup1)
 
 
@@ -207,10 +213,11 @@ class User:
     def keyboard_user(self, message):
         markup2 = types.ReplyKeyboardMarkup(resize_keyboard=True)
         button1 = types.KeyboardButton('Записаться')
-        button3 = types.KeyboardButton('Отменить запись')
-        button5 = types.KeyboardButton('Личный кабинет')
-        button6 = types.KeyboardButton('Помощь')
-        markup2.row(button1, button3, button5, button6)
+        button2 = types.KeyboardButton('Отменить запись')
+        button3 = types.KeyboardButton('Личный кабинет')
+        button4 = types.KeyboardButton('Помощь')
+        markup2.row(button1, button2)
+        markup2.row(button3, button4)
         bot.send_message(message.chat.id, 'Бот для фитнес-студии', reply_markup=markup2)
         if name == '':
             bot.send_message(message.chat.id,
@@ -267,6 +274,8 @@ def menu(message):
             bot.register_next_step_handler(message, lambda msg: admin.add_rasp(msg, msg.text.split('_')[0],
                                                                                msg.text.split('_')[1],
                                                                                msg.text.split('_')[2]))
+        elif message.text == 'Редактировать расписание':
+            admin.edit_rasp(message)
         elif message.text == 'Абонементы':
             admin.subscription(message)
         elif message.text == 'Обновить прайс-лист':
@@ -299,6 +308,108 @@ def callback_replenish_subscription(callback):
                      'Введите ФИО посетителя, пополнившего абонемент, и количество приобретённых занятий через запятую.\n\nПример: <b><i>Иванова Екатерина Александровна, 30</i></b>',
                      parse_mode='HTML')
     bot.register_next_step_handler(callback.message, replenish_subscription, callback)
+
+@bot.callback_query_handler(func=lambda callback: 'delete_a_training' in callback.data)
+def callback_delete_a_training(callback):
+    # получение всех дат и направлений занятий
+    cursor.execute("SELECT date, napr FROM classes")
+    data = cursor.fetchall()
+    # создание списка дат
+    dates = []
+    for row in data:
+        if row[0] not in dates:
+            dates.append(row[0])
+    # создание клавиатуры с датами
+    keyboard = types.InlineKeyboardMarkup()
+    for date in dates:
+        button = types.InlineKeyboardButton(text=date, callback_data='delete_class_date_' + date)
+        keyboard.add(button)
+
+    # отправка сообщения с выбором даты
+    bot.send_message(callback.message.chat.id, "Выберете дату, на которую хотели бы отменить занятие:",
+                     reply_markup=keyboard)
+
+@bot.callback_query_handler(func=lambda callback: 'delete_class_date_' in callback.data)
+def callback_delete_class_date(callback):
+    date = callback.data.split('_')[3]
+    # получение направления
+    cursor.execute("SELECT napr FROM classes WHERE date=?", (date,))
+    data = cursor.fetchall()
+
+    # создание клавиатуры с направлениями
+    keyboard = types.InlineKeyboardMarkup()
+    buttons = []
+    for row in data:
+        if row[0] not in buttons:
+            buttons.append(row[0])
+            button = types.InlineKeyboardButton(text=row[0], callback_data='delete_class_napr_' + date + '_' + row[0])
+            keyboard.add(button)
+
+    # отправка сообщения с выбором направления
+    bot.send_message(callback.message.chat.id, "Какое направление вы хотите удалить?", reply_markup=keyboard)
+
+@bot.callback_query_handler(func=lambda callback: 'delete_class_napr_' in callback.data)
+def callback_delete_class_napr(callback):
+    data = callback.data.split('_')
+    date = data[3]
+    napr = data[4]
+    # удаление занятий
+    cursor.execute("DELETE FROM classes WHERE date=? AND napr=?", (date, napr))
+    database.commit()
+    # отправка сообщения об успешном удалении
+    bot.send_message(callback.message.chat.id, f'Занятия на {date} по направлению {napr} успешно удалены.')
+
+@bot.callback_query_handler(func=lambda callback: 'replace_a_training' in callback.data)
+def callback_replace_a_training(callback):
+    # получение всех дат и направлений занятий
+    cursor.execute("SELECT date, napr FROM classes")
+    data = cursor.fetchall()
+    # создание списка дат
+    dates = []
+    for row in data:
+        if row[0] not in dates:
+            dates.append(row[0])
+    # создание клавиатуры с датами
+    keyboard = types.InlineKeyboardMarkup()
+    for date in dates:
+        button = types.InlineKeyboardButton(text=date, callback_data='replace_class_date_' + date)
+        keyboard.add(button)
+
+    # отправка сообщения с выбором даты
+    bot.send_message(callback.message.chat.id, "Выберете дату, на которую хотели бы заменить занятие:",
+                     reply_markup=keyboard)
+
+@bot.callback_query_handler(func=lambda callback: 'replace_class_date_' in callback.data)
+def callback_replace_class_date(callback):
+    date = callback.data.split('_')[3]
+    # получение направления
+    cursor.execute("SELECT napr FROM classes WHERE date=?", (date,))
+    data = cursor.fetchall()
+
+    # создание клавиатуры с направлениями
+    keyboard = types.InlineKeyboardMarkup()
+    buttons = []
+    for row in data:
+        if row[0] not in buttons:
+            buttons.append(row[0])
+            button = types.InlineKeyboardButton(text=row[0], callback_data='replace_class_napr_' + date + '_' + row[0])
+            keyboard.add(button)
+
+    # отправка сообщения с выбором направления
+    bot.send_message(callback.message.chat.id, "Какое направление вы хотите заменить?", reply_markup=keyboard)
+
+@bot.callback_query_handler(func=lambda callback: 'replace_class_napr_' in callback.data)
+def callback_replace_class_napr(callback):
+    data, napr = callback.data.split('_')[3:]
+    cursor.execute("SELECT * FROM classes WHERE date=? AND napr=?", (data, napr))
+    rows = cursor.fetchall()
+    print(rows)
+    if len(rows) == 0:
+        bot.send_message(callback.message.chat.id, "Не найдено занятий на эту дату и направление")
+        return
+    bot.send_message(callback.message.chat.id,
+                     "Введите новые данные в формате 'дд-мм-гггг_новое направление_новый тренер'")
+    bot.register_next_step_handler(callback.message, replace_classes, rows, data, napr)
 
 
 @bot.callback_query_handler(func=lambda callback: 'date-napr_' in callback.data)
@@ -483,6 +594,26 @@ def subscription(message):
     bot.send_message(message.chat.id, f'Количество активных абонентов: {kol}', reply_markup=markup_subscription)
 
 
+# функция, которая вызывается при нажатии админом на кнопку "Редактировать расписание"
+def edit_rasp(message):
+    cursor.execute("SELECT * FROM classes")
+    print(cursor.fetchall())
+    markup_edit_rasp = types.InlineKeyboardMarkup()
+    button1 = types.InlineKeyboardButton('Удалить занятие', callback_data='delete_a_training')
+    button2 = types.InlineKeyboardButton('Заменить занятие', callback_data='replace_a_training')
+    markup_edit_rasp.add(button1, button2)
+    bot.send_message(message.chat.id, "Выберите действие:", reply_markup=markup_edit_rasp)
+
+
+# функция, которая вызывается при замене занятия админом
+def replace_classes(message, rows, data, napr):
+    new_data, new_napr, new_coach = message.text.split('_')
+    for row in rows:
+        cursor.execute("UPDATE classes SET date=?, napr=?, coach=? WHERE date=? AND napr=?", (new_data, new_napr, new_coach, data, napr))
+    database.commit()
+    bot.send_message(message.chat.id, "Данные обновлены!")
+
+
 def add_subscription(message, callback):
     try:
         visitor, kol = message.text.split(', ')
@@ -514,5 +645,11 @@ def replenish_subscription(message, callback):
         bot.send_message(message.chat.id, "Данные введены некорректно. Попробуйте снова.")
         callback_add_subscription(callback)
 
+
+def delete_a_training(message, callback):
+    ...
+
+def replace_a_training(message, callback):
+    ...
 
 bot.polling(none_stop=True)
