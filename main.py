@@ -92,7 +92,7 @@ def rasp_show(date):
 
 
 # Удаление данных
-#cursor.execute("DELETE FROM classes")
+# cursor.execute("DELETE FROM classes")
 
 # Удаление таблицы
 # cursor.execute("DROP TABLE subscription_inf")
@@ -140,12 +140,14 @@ print(cursor.fetchall())
 # cursor.execute("SELECT * FROM prob_classes")
 # print(cursor.fetchall())
 
-#cursor.execute("UPDATE subscription_inf SET prob_inf = '+' WHERE id = 961443903")
+# cursor.execute("UPDATE subscription_inf SET prob_inf = '+' WHERE id = 961443903")
+# cursor.execute("UPDATE subscription_inf SET prob_inf = '+' WHERE id = 1269188609")
+# cursor.execute("UPDATE subscription_inf SET subscription = '0' WHERE id = 1269188609")
 cursor.execute("SELECT * FROM subscription_inf")
 print(cursor.fetchall())
 
-
 database.commit()
+
 
 # класс для админов
 class Admin:
@@ -566,19 +568,30 @@ def is_user_enter(name, date, napr):
 # функция, которая вызывается при нажатии пользователем на кнопку "Записаться"
 def sign_up_for_training(message):
     cursor = database.cursor()
-    markup = types.InlineKeyboardMarkup()
-    cursor.execute("SELECT DISTINCT date FROM classes")
-    dates_ = cursor.fetchall()
-    dates = []
-    for date in dates_:
-        for d in date:
-            dates.append(d)
-    for date in dates:
-        butt = 'date:' + date
-        button = types.InlineKeyboardButton(date, callback_data=butt)
-        markup.add(button)
-    bot.send_message(message.chat.id, 'Выберите день:', reply_markup=markup)
-    cursor.close()
+    user_id = message.from_user.id
+    cursor.execute("SELECT subscription FROM subscription_inf WHERE id = ?", (user_id,))
+    sub = cursor.fetchone()
+    if sub:
+        if sub[0] > 0:
+            markup = types.InlineKeyboardMarkup()
+            cursor.execute("SELECT DISTINCT date FROM classes")
+            dates_ = cursor.fetchall()
+            dates = []
+            for date in dates_:
+                for d in date:
+                    dates.append(d)
+            for date in dates:
+                butt = 'date:' + date
+                button = types.InlineKeyboardButton(date, callback_data=butt)
+                markup.add(button)
+            bot.send_message(message.chat.id, 'Выберите день:', reply_markup=markup)
+            cursor.close()
+        else:
+            bot.send_message(message.chat.id,
+                             "Вы не можете записаться на занятие, так как у вас закончился абонемент.\n"
+                             "Вам необходимо обратиться к администратору в студии для его пополнения.")
+    else:
+        bot.send_message(message.chat.id, "Произошла ошибка. К сожалению, невозможно записаться на занятие.")
 
 
 # функция, которая вызывается при нажатии пользователем на кнопку "Отметить запись"
