@@ -6,6 +6,12 @@ from bot_start import bot
 database = sqlite3.connect('rasp.db', check_same_thread=False)
 cursor = database.cursor()
 
+# токен для PayMaster
+#payment_token = '1744374395:TEST:76270d537750431c42bb'
+
+# токен для ЮKassa
+payment_token = '381764678:TEST:71355'
+
 
 # функция, которая вызывается при нажатии пользователем на кнопку "Личный кабинет"
 def personal_account(message):
@@ -103,3 +109,17 @@ def callback_replenish_subscription(callback):
                      'Пример: <b><i>+79213421431, Иванова Екатерина Александровна, 30</i></b>',
                      parse_mode='HTML')
     bot.register_next_step_handler(callback.message, replenish_subscription, callback)
+
+
+# функция, которая вызывается при нажатии пользователем на кнопку "Записаться на пробное занятие"
+def trial_training(message):
+    bot.send_invoice(message.chat.id, 'Пробное занятие', 'Покупка пробного занятия', 'invoice', payment_token, 'RUB',
+                     [types.LabeledPrice('Покупка пробного занятия', 400 * 100)])
+
+
+# Обработчик успешного платежа
+@bot.message_handler(content_types=['successful_payment'])
+def successful_payment(message):
+    new_user_id = message.chat.id
+    cursor.execute("UPDATE subscription_inf SET prob_inf = '+' WHERE id = ?", (new_user_id,))
+    bot.send_message(message.chat.id, 'Оплата прошла успешно. Ждём вас на пробном занятии в нашей студии!')

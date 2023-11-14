@@ -17,10 +17,14 @@ print(cursor.fetchall())
 cursor.execute("SELECT * FROM subscription_inf")
 print(cursor.fetchall())
 
+#cursor.execute("UPDATE subscription_inf SET prob_inf = '-' WHERE id = 1269188609")
+#cursor.execute("SELECT * FROM subscription_inf")
+#print(cursor.fetchall())
+#database.commit()
 
 # класс для админов
 class Admin:
-    _admin_id_1: int = 1269188609
+    _admin_id_1: int = 12691886091
     _admin_id_2: int = 9614439031
     admin_used: int
 
@@ -113,18 +117,16 @@ class NewUser:
     def __init__(self, user_id):
         self.new_user_id = user_id
 
-    # "Оформить пробное занятие"
-    # def ...(self, message):
-    #    ...
+    # "Записаться на пробное занятие"
+    @staticmethod
+    def trial_training(message):
+        trial_training(message)
 
     # "Личный кабинет"
     # def personal_account(self, message):
     #    personal_account(message)
 
     # клавиатура для нового пользователя
-    # def keyboard_new_user(self, message):
-    #    ...
-
     @staticmethod
     def keyboard_new_user(message):
         markup2 = types.ReplyKeyboardMarkup(resize_keyboard=True)
@@ -179,6 +181,6 @@ def menu(message):
         elif message.text == 'Помощь':
             user.help(message)
 
-
-
-
+    if message.text == 'Записаться на пробное занятие':
+        new_user = NewUser(user_id)
+        new_user.trial_training(message)
