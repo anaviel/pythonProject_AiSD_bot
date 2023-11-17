@@ -9,9 +9,10 @@ cursor = database.cursor()
 
 
 # функция, которая вызывается при нажатии пользователем на кнопку "Записаться"
-def sign_up_for_training(message):
+def sign_up_for_training(message, user_id=None):
     cursor = database.cursor()
-    user_id = message.from_user.id
+    if user_id is None:
+        user_id = message.from_user.id
     cursor.execute("SELECT subscription FROM subscription_inf WHERE id = ?", (user_id,))
     sub = cursor.fetchone()
     if sub:
@@ -39,6 +40,7 @@ def sign_up_for_training(message):
 
 @bot.callback_query_handler(func=lambda callback: 'date:' in callback.data)
 def callback_dates_show(callback):
+    bot.delete_message(callback.message.chat.id, callback.message.message_id)
     markup = types.InlineKeyboardMarkup()
     date = callback.data.split(':')[1]
     rasp_list_available, rasp_list_unavailable = rasp_show(date)
@@ -59,7 +61,16 @@ def callback_dates_show(callback):
         reg = 'reg_' + date + '_' + napr
         button = types.InlineKeyboardButton(napr, callback_data=reg)
         markup.add(button)
+    back_button = types.InlineKeyboardButton("Назад", callback_data="back_to_sign_up")
+    markup.add(back_button)
     bot.send_message(callback.message.chat.id, rasp_str, reply_markup=markup)
+
+
+@bot.callback_query_handler(func=lambda callback: "back_to_sign_up" in callback.data)
+def callback_back(callback):
+    user_id = callback.from_user.id
+    bot.delete_message(callback.message.chat.id, callback.message.message_id)
+    sign_up_for_training(callback.message, user_id)
 
 
 def rasp_show(date):
@@ -85,6 +96,7 @@ def rasp_show(date):
 
 @bot.callback_query_handler(func=lambda callback: 'reg_' in callback.data)
 def callback_reg(callback):
+    bot.delete_message(callback.message.chat.id, callback.message.message_id)
     cursor = database.cursor()
     user_id = callback.from_user.id
     cursor.execute("SELECT visitor FROM subscription_inf WHERE id = ?", (user_id,))

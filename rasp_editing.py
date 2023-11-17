@@ -16,6 +16,7 @@ def edit_rasp(message):
     markup_edit_rasp.add(button1, button2)
     bot.send_message(message.chat.id, "Выберите действие:", reply_markup=markup_edit_rasp)
 
+
 @bot.callback_query_handler(func=lambda callback: 'delete_a_training' in callback.data)
 def callback_delete_a_training(callback):
     # получение всех дат и направлений занятий

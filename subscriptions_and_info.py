@@ -2,6 +2,7 @@ import sqlite3
 import os
 from telebot import types
 from bot_start import bot
+from registr_cancel_class import sign_up_for_training
 
 database = sqlite3.connect('rasp.db', check_same_thread=False)
 cursor = database.cursor()
@@ -113,6 +114,9 @@ def callback_replenish_subscription(callback):
 
 # функция, которая вызывается при нажатии пользователем на кнопку "Записаться на пробное занятие"
 def trial_training(message):
+    bot.send_message(message.chat.id, 'Предлагаем приобрести пробное занятие по выгодной цене. '
+                                      '\n\nСразу после оплаты у Вас появится возможность записаться на занятие.'
+                                      '\n\n🤍Подробности уточняйте у администратора студии.')
     bot.send_invoice(message.chat.id, 'Пробное занятие', 'Покупка пробного занятия', 'invoice', payment_token, 'RUB',
                      [types.LabeledPrice('Покупка пробного занятия', 400 * 100)])
 
@@ -121,5 +125,8 @@ def trial_training(message):
 @bot.message_handler(content_types=['successful_payment'])
 def successful_payment(message):
     new_user_id = message.chat.id
-    cursor.execute("UPDATE subscription_inf SET prob_inf = '+' WHERE id = ?", (new_user_id,))
+    cursor.execute("UPDATE subscription_inf SET prob_inf = '+', subscription = 1 WHERE id = ?", (new_user_id,))
+    database.commit()
     bot.send_message(message.chat.id, 'Оплата прошла успешно. Ждём вас на пробном занятии в нашей студии!')
+    sign_up_for_training(message)
+

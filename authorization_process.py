@@ -65,7 +65,7 @@ def check_number(message):
             user.keyboard_user(message)
         else:
             new_user = NewUser(user_id)
-            # показываем клавиатуру для пользователя
+            # показываем клавиатуру для нового пользователя
             new_user.keyboard_new_user(message)
     else:
         bot.send_message(message.chat.id, 'К сожалению, номер не найден. Проверьте правильность введённых'
