@@ -18,10 +18,10 @@ cursor.execute("SELECT * FROM subscription_inf")
 print(cursor.fetchall())
 
 
-#cursor.execute("UPDATE subscription_inf SET prob_inf = '-' WHERE id = 1269188609")
+#cursor.execute("UPDATE subscription_inf SET prob_inf = '-', subscription = 0 WHERE id = 1269188609")
 #cursor.execute("SELECT * FROM subscription_inf")
 #print(cursor.fetchall())
-cursor.execute("UPDATE classes SET visitor = '-' WHERE visitor = 'Маркова Анастасия Андреевна'")
+#cursor.execute("UPDATE classes SET visitor = '-' WHERE visitor = 'Маркова Анастасия Андреевна'")
 database.commit()
 
 

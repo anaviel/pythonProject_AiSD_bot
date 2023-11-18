@@ -121,6 +121,11 @@ def trial_training(message):
                      [types.LabeledPrice('Покупка пробного занятия', 400 * 100)])
 
 
+@bot.pre_checkout_query_handler(func=lambda query: True)
+def process_pre_checkout_query(pre_checkout_query: types.PreCheckoutQuery):
+    bot.answer_pre_checkout_query(pre_checkout_query.id, ok=True)
+
+
 # Обработчик успешного платежа
 @bot.message_handler(content_types=['successful_payment'])
 def successful_payment(message):
