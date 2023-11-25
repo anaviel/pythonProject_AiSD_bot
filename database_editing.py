@@ -11,6 +11,7 @@ def rasp_create():
         date text,
         napr text,
         coach text,
+        id text,
         visitor text
     )""")
 
@@ -22,6 +23,7 @@ def prob_create():
         date text,
         napr text,
         coach text,
+        id text,
         visitor text
     )""")
 
@@ -37,28 +39,29 @@ def subscription_create():
         )""")
 
 
-def insert_rasp(date, napr, coach, visitor='-'):
+def insert_rasp(date, napr, coach, id='-', visitor='-'):
     # Добавление расписания
-    cursor.execute("INSERT INTO classes (date, napr, coach, visitor) VALUES (?, ?, ?, ?)", (date, napr, coach, visitor))
+    cursor.execute("INSERT INTO classes (date, napr, coach, id, visitor) VALUES (?, ?, ?, ?, ?)",
+                   (date, napr, coach, id, visitor))
     database.commit()
 
 
-def update_visitor(date, napr, coach, visitor, cursor, database):
+def update_visitor(date, napr, coach, id, visitor, cursor, database):
     # Замена 4-го параметра посетилеля на реального человека, когда он записывается
-    cursor.execute("SELECT rowid FROM classes WHERE date = ? AND napr = ? AND coach = ? AND visitor = '-'",
+    cursor.execute("SELECT rowid FROM classes WHERE date = ? AND napr = ? AND coach = ? AND id = '-' AND visitor = '-'",
                    (date, napr, coach))
     row = cursor.fetchone()
-    cursor.execute("UPDATE classes SET visitor = ? WHERE rowid = ?",
-                   (visitor, row[0]))
+    cursor.execute("UPDATE classes SET id = ?, visitor = ? WHERE rowid = ?",
+                   (id, visitor, row[0]))
     cursor.execute("SELECT * FROM classes")
     database.commit()
 
 
-def prob_classes(date, napr, coach, visitor):
+def prob_classes(date, napr, coach, id, visitor):
     # Добавление информации о записи на пробное занятие в таблицу
     date_today = datetime.now().date()
-    cursor.execute("INSERT INTO prob_classes (date_today, date, napr, coach, visitor) VALUES (?, ?, ?, ?, ?)",
-                   (date_today, date, napr, coach, visitor))
+    cursor.execute("INSERT INTO prob_classes (date_today, date, napr, coach, id, visitor) VALUES (?, ?, ?, ?, ?, ?)",
+                   (date_today, date, napr, coach, id, visitor))
     database.commit()
 
 

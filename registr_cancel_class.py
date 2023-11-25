@@ -76,9 +76,9 @@ def callback_back(callback):
 def rasp_show(date):
     cursor = database.cursor()
     # Вывод расписания
-    cursor.execute("SELECT DISTINCT napr, coach FROM classes WHERE date = ? AND visitor = '-'", (date,))
+    cursor.execute("SELECT DISTINCT napr, coach FROM classes WHERE date = ? AND id = '-' AND visitor = '-'", (date,))
     rows_available = cursor.fetchall()
-    cursor.execute("SELECT DISTINCT napr, coach FROM classes WHERE date = ? AND visitor != '-'", (date,))
+    cursor.execute("SELECT DISTINCT napr, coach FROM classes WHERE date = ? AND id = '-' AND visitor != '-'", (date,))
     rows_unavailable = cursor.fetchall()
     rasp_list_available = []
     rasp_list_unavailable = []
@@ -104,25 +104,25 @@ def callback_reg(callback):
     data_parts = callback.data.split('_')
     date = data_parts[1]
     napr = data_parts[2]
-    if is_user_enter(name, date, napr):
+    if is_user_enter(user_id, date, napr):
         bot.send_message(callback.message.chat.id, f'Вы уже записаны на занятие {date} ({napr}).')
     else:
         cursor.execute("SELECT coach FROM classes WHERE date = ? AND napr = ?", (date, napr))
         coach = ''.join(cursor.fetchone())
         from database_editing import update_visitor
-        update_visitor(date, napr, coach, name, cursor, database)
-        cursor.execute("SELECT subscription FROM subscription_inf WHERE visitor = ?", (name,))
+        update_visitor(date, napr, coach, user_id, name, cursor, database)
+        cursor.execute("SELECT subscription FROM subscription_inf WHERE id = ? AND visitor = ?", (user_id, name))
         result = cursor.fetchone()
         new_subscription = result[0] - 1
-        cursor.execute("UPDATE subscription_inf SET subscription = ? WHERE visitor = ?", (new_subscription, name))
+        cursor.execute("UPDATE subscription_inf SET subscription = ? WHERE id = ? AND visitor = ?", (new_subscription, user_id, name))
         database.commit()
         bot.send_message(callback.message.chat.id,
                          f'Вы успешно записаны {date} на {napr}.\nС баланса Вашего абонемента было списано одно занятие.')
 
 
-def is_user_enter(name, date, napr):
+def is_user_enter(id, date, napr):
     cursor = database.cursor()
-    cursor.execute("SELECT * FROM classes WHERE date = ? AND napr = ? AND visitor= ?", (date, napr, name))
+    cursor.execute("SELECT * FROM classes WHERE date = ? AND napr = ? AND id = ?", (date, napr, id))
     result = cursor.fetchall()
     cursor.close()
     return len(result) > 0
@@ -131,9 +131,7 @@ def is_user_enter(name, date, napr):
 # функция, которая вызывается при нажатии пользователем на кнопку "Отметить запись"
 def cancel_registration_for_training(message):
     user_id = message.from_user.id
-    cursor.execute("SELECT visitor FROM subscription_inf WHERE id = ?", (user_id,))
-    visitor = ''.join(cursor.fetchone())
-    cursor.execute("SELECT date, napr FROM classes WHERE visitor = ?", (visitor,))
+    cursor.execute("SELECT date, napr FROM classes WHERE id = ?", (user_id,))
     markup = types.InlineKeyboardMarkup()
     dates_napr_ = cursor.fetchall()
     dates_napr = []
@@ -157,22 +155,19 @@ def callback_cancel(callback):
     date_napr = callback.data.split('_')
     date = date_napr[1]
     napr = date_napr[2]
-    cursor.execute("SELECT coach FROM classes WHERE date = ? AND napr = ?", (date, napr))
-    coach = ''.join(cursor.fetchone())
-    cursor.execute("UPDATE classes SET visitor = '-' WHERE date = ? AND napr = ? AND coach = ?",
-                   (date, napr, coach))
-    cursor.execute("SELECT subscription FROM subscription_inf WHERE visitor = ?",
-                   (name,))
+    cursor.execute("UPDATE classes SET id = '-', visitor = '-' WHERE date = ? AND napr = ?",
+                   (date, napr))
+    cursor.execute("SELECT subscription FROM subscription_inf WHERE id = ? AND visitor = ?",
+                   (user_id, name))
     result = cursor.fetchone()
     new_subscription = result[0] + 1
-    cursor.execute("UPDATE subscription_inf SET subscription = ? WHERE visitor = ?",
-                   (new_subscription, name))
+    cursor.execute("UPDATE subscription_inf SET subscription = ? WHERE id = ? AND visitor = ?",
+                   (new_subscription, user_id, name))
     database.commit()
     bot.send_message(callback.message.chat.id,
                      f'Запись на {date}, "{napr}" успешно отменена.'
                      f'\nНа баланс Вашего абонемента было возвращено одно занятие.')
     cursor.execute("SELECT * FROM classes")
-    print(cursor.fetchall())
 
 
 
