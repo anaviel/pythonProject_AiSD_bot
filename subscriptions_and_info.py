@@ -3,6 +3,7 @@ import os
 from telebot import types
 from bot_start import bot
 from registr_cancel_class import sign_up_for_training
+from tabulate import tabulate
 
 database = sqlite3.connect('rasp.db', check_same_thread=False)
 cursor = database.cursor()
@@ -137,4 +138,62 @@ def successful_payment(message):
     from database_editing import prob_classes
     prob_classes(new_user_id)
     sign_up_for_training(message)
+
+# функция, которая вызывается при нажатии админом на кнопку "Таблицы"
+def display_tables(message):
+    cursor.execute("SELECT * FROM classes")
+    markup = types.InlineKeyboardMarkup()
+    button1 = types.InlineKeyboardButton('Расписание', callback_data='show_the_rasp')
+    button2 = types.InlineKeyboardButton('Абонементы', callback_data='show_the_ab')
+    button3 = types.InlineKeyboardButton('Пробные занятия', callback_data='show_the_prob')
+    markup.add(button1, button2, button3)
+    bot.send_message(message.chat.id, "Выберите таблицу:", reply_markup=markup)
+
+@bot.callback_query_handler(func=lambda callback: 'show_the_rasp' in callback.data)
+def callback_show_the_rasp(callback):
+    cursor.execute("SELECT date, napr, coach, visitor FROM classes")
+    rows = cursor.fetchall()
+
+    if rows:
+        headers = ["Дата", "Направление", "Тренер", "Посетитель"]
+        data = [list(row) for row in rows]
+        table_rasp = tabulate(data, headers, tablefmt="pretty")
+
+        with open("Расписание.txt", "w", encoding="utf-8") as file:
+            file.write(table_rasp)
+
+        with open("Расписание.txt", "rb") as file:
+            bot.send_document(callback.message.chat.id, file)
+
+@bot.callback_query_handler(func=lambda callback: 'show_the_ab' in callback.data)
+def callback_show_the_ab(callback):
+    cursor.execute("SELECT * FROM subscription_inf")
+    rows_subscriptions = cursor.fetchall()
+
+    if rows_subscriptions:
+        headers_subscriptions = ["ID", "Посетитель", "Телефон", "Абонемент"]
+        data_subscriptions = [list(row) for row in rows_subscriptions]
+        table_subscriptions = tabulate(data_subscriptions, headers_subscriptions, tablefmt="pretty")
+
+        with open("Абонементы.txt", "w", encoding="utf-8") as file:
+            file.write(table_subscriptions)
+
+        with open("Абонементы.txt", "rb") as file:
+            bot.send_document(callback.message.chat.id, file)
+
+@bot.callback_query_handler(func=lambda callback: 'show_the_prob' in callback.data)
+def callback_show_the_prob(callback):
+    cursor.execute("SELECT * FROM prob_classes")
+    rows_prob = cursor.fetchall()
+
+    if rows_prob:
+        headers_prob = ["Дата", "ID", "Посетитель"]
+        data_prob = [list(row) for row in rows_prob]
+        table_prob = tabulate(data_prob, headers_prob, tablefmt="pretty")
+
+        with open("Пробные занятия.txt", "w", encoding="utf-8") as file:
+            file.write(table_prob)
+
+        with open("Пробные занятия.txt", "rb") as file:
+            bot.send_document(callback.message.chat.id, file)
 

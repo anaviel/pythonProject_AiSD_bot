@@ -32,10 +32,11 @@ database.commit()
 class Admin:
     _admin_id_1: int = 12691886091
     _admin_id_2: int = 961443903
+    _admin_id_3: int = 5425378041
     admin_used: int
 
     def __init__(self, user_id):
-        if (user_id == self._admin_id_1) or (user_id == self._admin_id_2):
+        if (user_id == self._admin_id_1) or (user_id == self._admin_id_2) or (user_id == self._admin_id_3):
             self.admin_used = user_id
         else:
             self.admin_used = 0
@@ -64,6 +65,11 @@ class Admin:
     def update_price_list(message):
         update_price_list(message)
 
+    # "Таблица"
+    @staticmethod
+    def display_tables(message):
+        display_tables(message)
+
     # клавиатура для админа
     @staticmethod
     def keyboard_admin(message):
@@ -72,8 +78,9 @@ class Admin:
         button2 = types.KeyboardButton('Редактировать расписание')
         button3 = types.KeyboardButton('Абонементы')
         button4 = types.KeyboardButton('Обновить прайс-лист')
+        button5 = types.KeyboardButton('Таблицы')
         markup1.row(button1, button2)
-        markup1.row(button3, button4)
+        markup1.row(button3, button4, button5)
         bot.send_message(message.chat.id, 'Добро пожаловать, администратор!', reply_markup=markup1)
 
 
@@ -172,6 +179,8 @@ def menu(message):
         elif message.text == 'Обновить прайс-лист':
             bot.send_message(message.chat.id, 'Пожалуйста, отправьте изображение обновлённого прайс-листа.')
             bot.register_next_step_handler(message, admin.update_price_list)
+        elif message.text == 'Таблицы':
+            admin.display_tables(message)
     # если боту написал пользователь
     else:
         user = User(user_id)
