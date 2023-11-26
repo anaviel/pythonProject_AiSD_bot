@@ -1,17 +1,19 @@
 import asyncio
 import sqlite3
 from threading import Thread
-from datetime import datetime
+from datetime import datetime, timedelta
 
 database = sqlite3.connect('rasp.db', check_same_thread=False)
 cursor = database.cursor()
 
 
-# Функция для удаления записей с текущей датой
+# Функция для удаления записей, которые были три недели назад
 async def delete_records_daily():
-    current_date = datetime.now().date().strftime("%d-%m-%Y")
-    # Удаление записей с текущей датой
-    cursor.execute(f"DELETE FROM classes WHERE date = '{current_date}'")
+    three_weeks_ago = datetime.now() - timedelta(weeks=4)
+    target_date = three_weeks_ago.date().strftime("%d-%m-%Y")
+
+    # Удаление записей с заданной датой
+    cursor.execute(f"DELETE FROM classes WHERE date = '{target_date}'")
     database.commit()
 
 
@@ -19,7 +21,7 @@ async def delete_records_daily():
 async def schedule_daily_task():
     while True:
         now = datetime.now()
-        target_time = now.replace(hour=23, minute=0, second=0, microsecond=0)
+        target_time = now.replace(hour=23, minute=59, second=0, microsecond=0)
 
         # Если текущее время больше или равно заданному времени, запускается удаление записей
         if now >= target_time:

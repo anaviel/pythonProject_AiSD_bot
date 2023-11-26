@@ -7,8 +7,6 @@ from registr_cancel_class import sign_up_for_training
 database = sqlite3.connect('rasp.db', check_same_thread=False)
 cursor = database.cursor()
 
-# токен для PayMaster
-#payment_token = '1744374395:TEST:76270d537750431c42bb'
 
 # токен для ЮKassa
 payment_token = '381764678:TEST:71355'
@@ -80,6 +78,16 @@ def subscription(message):
     bot.send_message(message.chat.id, f'Количество активных абонементов: {kol}', reply_markup=markup_subscription)
 
 
+@bot.callback_query_handler(func=lambda callback: 'replenish_subscription' in callback.data)
+def callback_replenish_subscription(callback):
+    bot.send_message(callback.message.chat.id,
+                     'Введите номер телефона, ФИО посетителя, пополнившего абонемент, и количество '
+                     'приобретённых занятий через запятую.\n\n'
+                     'Пример: <b><i>+79213421431, Иванова Екатерина Александровна, 30</i></b>',
+                     parse_mode='HTML')
+    bot.register_next_step_handler(callback.message, replenish_subscription, callback)
+
+
 def replenish_subscription(message, callback):
     try:
         phone_number, visitor, kol = message.text.split(', ')
@@ -87,8 +95,13 @@ def replenish_subscription(message, callback):
                        (phone_number, visitor))
         result = cursor.fetchone()
         if result is None:
-            bot.send_message(message.chat.id, "Посетитель с таким именем не найден")
+            bot.send_message(message.chat.id, "Посетитель с такими данными не найден")
         else:
+            cursor.execute("SELECT id FROM subscription_inf WHERE phone_number = ? AND visitor = ?",
+                           (phone_number, visitor))
+            user_id = ''.join(cursor.fetchone())
+            bot.send_message(user_id, f"Уважаемая, {visitor}! Ваш абонемент был пополнен администратором. "
+                                      f"В случае, если абонемент был приобретён впервые, перезапустите бот.")
             new_subscription = result[0] + int(kol)
             cursor.execute("UPDATE subscription_inf SET subscription = ? WHERE visitor = ?",
                            (new_subscription, visitor))
@@ -98,16 +111,6 @@ def replenish_subscription(message, callback):
     except:
         bot.send_message(message.chat.id, "Данные введены некорректно. Попробуйте снова.")
         callback_replenish_subscription(callback)
-
-
-@bot.callback_query_handler(func=lambda callback: 'replenish_subscription' in callback.data)
-def callback_replenish_subscription(callback):
-    bot.send_message(callback.message.chat.id,
-                     'Введите номер телефона, ФИО посетителя, пополнившего абонемент, и количество '
-                     'приобретённых занятий через запятую.\n\n'
-                     'Пример: <b><i>+79213421431, Иванова Екатерина Александровна, 30</i></b>',
-                     parse_mode='HTML')
-    bot.register_next_step_handler(callback.message, replenish_subscription, callback)
 
 
 # функция, которая вызывается при нажатии пользователем на кнопку "Записаться на пробное занятие"
@@ -131,5 +134,7 @@ def successful_payment(message):
     cursor.execute("UPDATE subscription_inf SET prob_inf = '+', subscription = 1 WHERE id = ?", (new_user_id,))
     database.commit()
     bot.send_message(message.chat.id, 'Оплата прошла успешно. Ждём вас на пробном занятии в нашей студии!')
+    from database_editing import prob_classes
+    prob_classes(new_user_id)
     sign_up_for_training(message)
 

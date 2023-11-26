@@ -16,6 +16,9 @@ cursor.execute("SELECT * FROM classes")
 print(cursor.fetchall())
 cursor.execute("SELECT * FROM subscription_inf")
 print(cursor.fetchall())
+cursor.execute("SELECT * FROM prob_classes")
+print(cursor.fetchall())
+
 
 
 #cursor.execute("UPDATE subscription_inf SET prob_inf = '-', subscription = 0 WHERE id = 1269188609")
@@ -40,7 +43,8 @@ class Admin:
     # "Добавление расписания"
     @staticmethod
     def add_rasp(message, date, napr, coach):
-        insert_rasp(date, napr, coach)
+        for _ in range(5):
+            insert_rasp(date, napr, coach)
         bot.send_message(message.chat.id,
                          f"В расписание добавилась запись со следующими параметрами:\n"
                          f"Дата: {date}\nНаправление: {napr}\nТренер: {coach}")
@@ -124,10 +128,6 @@ class NewUser:
     @staticmethod
     def trial_training(message):
         trial_training(message)
-
-    # "Личный кабинет"
-    # def personal_account(self, message):
-    #    personal_account(message)
 
     # клавиатура для нового пользователя
     @staticmethod

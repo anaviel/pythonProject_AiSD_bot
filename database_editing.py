@@ -20,9 +20,6 @@ def prob_create():
     # Создание таблицы с оплаченными пробными занятиями
     cursor.execute("""CREATE TABLE IF NOT EXISTS prob_classes (
         date_today text,
-        date text,
-        napr text,
-        coach text,
         id text,
         visitor text
     )""")
@@ -57,11 +54,11 @@ def update_visitor(date, napr, coach, id, visitor, cursor, database):
     database.commit()
 
 
-def prob_classes(date, napr, coach, id, visitor):
+def prob_classes(user_id):
     # Добавление информации о записи на пробное занятие в таблицу
+    cursor.execute("SELECT visitor FROM subscription_inf WHERE id = ?", (user_id,))
+    visitor = ''.join(cursor.fetchone())
     date_today = datetime.now().date()
-    cursor.execute("INSERT INTO prob_classes (date_today, date, napr, coach, id, visitor) VALUES (?, ?, ?, ?, ?, ?)",
-                   (date_today, date, napr, coach, id, visitor))
+    cursor.execute("INSERT INTO prob_classes (date_today, id, visitor) VALUES (?, ?, ?)",
+                   (date_today, user_id, visitor))
     database.commit()
-
-
