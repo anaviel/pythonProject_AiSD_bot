@@ -25,7 +25,7 @@ database.commit()
 # класс для админов
 class Admin:
     _admin_id_1: int = 1269188609
-    _admin_id_2: int = 9614439031
+    _admin_id_2: int = 961443903
     _admin_id_3: int = 54253780411
     admin_used: int
 
@@ -64,6 +64,11 @@ class Admin:
     def display_tables(message):
         display_tables(message)
 
+    # "Дашборд"
+    @staticmethod
+    def dashboard(message):
+        dashboard(message)
+
     # клавиатура для админа
     @staticmethod
     def keyboard_admin(message):
@@ -73,8 +78,10 @@ class Admin:
         button3 = types.KeyboardButton('Абонементы')
         button4 = types.KeyboardButton('Обновить прайс-лист')
         button5 = types.KeyboardButton('Таблицы')
+        button6 = types.KeyboardButton('Дашборд')
         markup1.row(button1, button2)
-        markup1.row(button3, button4, button5)
+        markup1.row(button3, button4)
+        markup1.row(button5, button6)
         bot.send_message(message.chat.id, 'Добро пожаловать, администратор!', reply_markup=markup1)
 
 
@@ -175,6 +182,8 @@ def menu(message):
             bot.register_next_step_handler(message, admin.update_price_list)
         elif message.text == 'Таблицы':
             admin.display_tables(message)
+        elif message.text == 'Дашборд':
+            admin.dashboard(message)
     # если боту написал пользователь
     else:
         user = User(user_id)

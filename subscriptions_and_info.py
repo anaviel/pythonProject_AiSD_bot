@@ -4,6 +4,8 @@ from telebot import types
 from bot_start import bot
 from registr_cancel_class import sign_up_for_training
 from tabulate import tabulate
+import matplotlib.pyplot as plt
+from io import BytesIO
 
 database = sqlite3.connect('rasp.db', check_same_thread=False)
 cursor = database.cursor()
@@ -139,6 +141,7 @@ def successful_payment(message):
     prob_classes(new_user_id)
     sign_up_for_training(message)
 
+
 # функция, которая вызывается при нажатии админом на кнопку "Таблицы"
 def display_tables(message):
     cursor.execute("SELECT * FROM classes")
@@ -148,6 +151,7 @@ def display_tables(message):
     button3 = types.InlineKeyboardButton('Пробные занятия', callback_data='show_the_prob')
     markup.add(button1, button2, button3)
     bot.send_message(message.chat.id, "Выберите таблицу:", reply_markup=markup)
+
 
 @bot.callback_query_handler(func=lambda callback: 'show_the_rasp' in callback.data)
 def callback_show_the_rasp(callback):
@@ -165,6 +169,7 @@ def callback_show_the_rasp(callback):
         with open("Расписание.txt", "rb") as file:
             bot.send_document(callback.message.chat.id, file)
 
+
 @bot.callback_query_handler(func=lambda callback: 'show_the_ab' in callback.data)
 def callback_show_the_ab(callback):
     cursor.execute("SELECT * FROM subscription_inf")
@@ -180,6 +185,7 @@ def callback_show_the_ab(callback):
 
         with open("Абонементы.txt", "rb") as file:
             bot.send_document(callback.message.chat.id, file)
+
 
 @bot.callback_query_handler(func=lambda callback: 'show_the_prob' in callback.data)
 def callback_show_the_prob(callback):
@@ -197,3 +203,80 @@ def callback_show_the_prob(callback):
         with open("Пробные занятия.txt", "rb") as file:
             bot.send_document(callback.message.chat.id, file)
 
+
+def dashboard(message):
+
+    loading_message = bot.send_message(message.chat.id, "Загрузка...")
+
+    # Запрос для получения данных о загруженности тренеров
+    cursor.execute("""
+        SELECT coach, COUNT(visitor) as count
+        FROM classes
+        WHERE visitor != '-'
+        GROUP BY coach
+    """)
+    data_with_visitor = cursor.fetchall()
+
+    # Извлечение данных из результата запроса
+    coaches = [row[0] for row in data_with_visitor]
+    counts_with_visitor = [row[1] for row in data_with_visitor]
+
+    # Создание первого графика (загруженность тренеров)
+    fig1, ax1 = plt.subplots()
+    ax1.bar(coaches, counts_with_visitor, color='green')
+    ax1.set_xlabel('Тренеры')
+    ax1.set_ylabel('Количество записавшихся')
+    plt.title('Загруженность тренеров с учетом идентификатора посетителя')
+
+    # Поворот имен тренеров для лучшей читаемости
+    ax1.tick_params(axis='x', rotation=0)
+
+    # Сохранение графика в байтовый объект
+    image_stream1 = BytesIO()
+    plt.savefig(image_stream1, format='png')
+    image_stream1.seek(0)
+
+    # Закрытие графика
+    plt.close()
+
+    # Запрос для получения данных о частоте приобретения пробных занятий по дням
+    cursor.execute("""
+        SELECT date_today, COUNT(visitor) as prob_count
+        FROM prob_classes
+        GROUP BY date_today
+    """)
+    data_prob = cursor.fetchall()
+
+    # Извлечение данных из результата запроса
+    dates_prob = [row[0] for row in data_prob]
+    prob_counts = [row[1] for row in data_prob]
+
+    # Создание второго графика (частота пробных занятий по дням)
+    fig2, ax2 = plt.subplots()
+    ax2.plot(dates_prob, prob_counts, color='blue', marker='x')
+    ax2.set_xlabel('Дни')
+    ax2.set_ylabel('Частота пробных занятий')
+    plt.title('Частота приобретения пробных занятий по дням')
+
+    # Поворот дат для лучшей читаемости
+    ax2.tick_params(axis='x', rotation=45)
+
+    # Избегаем обрезания
+    plt.tight_layout()
+
+    # Сохранение второго графика в байтовый объект
+    image_stream2 = BytesIO()
+    plt.savefig(image_stream2, format='png')
+    image_stream2.seek(0)
+
+    # Закрытие второго графика
+    plt.close()
+
+    # Отправка графика как фотографии
+    bot.send_photo(message.chat.id, photo=image_stream1)
+
+    # Удаляем предыдущее сообщение о загрузке
+    bot.delete_message(message.chat.id, loading_message.message_id)
+
+    # Отправка второго графика как фотографии
+    bot.send_photo(message.chat.id, photo=image_stream2)
