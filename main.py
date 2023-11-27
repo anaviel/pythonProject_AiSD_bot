@@ -19,20 +19,14 @@ print(cursor.fetchall())
 cursor.execute("SELECT * FROM prob_classes")
 print(cursor.fetchall())
 
-
-
-#cursor.execute("UPDATE subscription_inf SET prob_inf = '-', subscription = 0 WHERE id = 1269188609")
-#cursor.execute("SELECT * FROM subscription_inf")
-#print(cursor.fetchall())
-#cursor.execute("UPDATE classes SET visitor = '-' WHERE visitor = 'Маркова Анастасия Андреевна'")
 database.commit()
 
 
 # класс для админов
 class Admin:
-    _admin_id_1: int = 12691886091
-    _admin_id_2: int = 961443903
-    _admin_id_3: int = 5425378041
+    _admin_id_1: int = 1269188609
+    _admin_id_2: int = 9614439031
+    _admin_id_3: int = 54253780411
     admin_used: int
 
     def __init__(self, user_id):
