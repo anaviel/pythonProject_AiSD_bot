@@ -29,7 +29,7 @@ def callback_delete_a_training(callback):
     # создание клавиатуры с датами
     keyboard = types.InlineKeyboardMarkup()
     for date in dates:
-        button = types.InlineKeyboardButton(text=date, callback_data='delete_class_date_' + date)
+        button = types.InlineKeyboardButton(text=date, callback_data='delete_date_' + date)
         keyboard.add(button)
 
     # отправка сообщения с выбором даты
@@ -37,9 +37,9 @@ def callback_delete_a_training(callback):
                      reply_markup=keyboard)
 
 
-@bot.callback_query_handler(func=lambda callback: 'delete_class_date_' in callback.data)
+@bot.callback_query_handler(func=lambda callback: 'delete_date_' in callback.data)
 def callback_delete_class_date(callback):
-    date = callback.data.split('_')[3]
+    date = callback.data.split('_')[2]
     # получение направления
     cursor.execute("SELECT napr FROM classes WHERE date=?", (date,))
     data = cursor.fetchall()
@@ -50,18 +50,18 @@ def callback_delete_class_date(callback):
     for row in data:
         if row[0] not in buttons:
             buttons.append(row[0])
-            button = types.InlineKeyboardButton(text=row[0], callback_data='delete_class_napr_' + date + '_' + row[0])
+            button = types.InlineKeyboardButton(text=row[0], callback_data='delete_napr_' + date + '_' + row[0])
             keyboard.add(button)
 
     # отправка сообщения с выбором направления
     bot.send_message(callback.message.chat.id, "Какое направление вы хотите удалить?", reply_markup=keyboard)
 
 
-@bot.callback_query_handler(func=lambda callback: 'delete_class_napr_' in callback.data)
+@bot.callback_query_handler(func=lambda callback: 'delete_napr_' in callback.data)
 def callback_delete_class_napr(callback):
     data = callback.data.split('_')
-    date = data[3]
-    napr = data[4]
+    date = data[2]
+    napr = data[3]
     cursor.execute("SELECT id FROM classes WHERE date=? AND napr=?", (date, napr))
     results = cursor.fetchall()
     users = [result[0] for result in results]
@@ -86,7 +86,7 @@ def callback_replace_a_training(callback):
     # создание клавиатуры с датами
     keyboard = types.InlineKeyboardMarkup()
     for date in dates:
-        button = types.InlineKeyboardButton(text=date, callback_data='replace_class_date_' + date)
+        button = types.InlineKeyboardButton(text=date, callback_data='replace_date_' + date)
         keyboard.add(button)
 
     # отправка сообщения с выбором даты
@@ -94,9 +94,9 @@ def callback_replace_a_training(callback):
                      reply_markup=keyboard)
 
 
-@bot.callback_query_handler(func=lambda callback: 'replace_class_date_' in callback.data)
+@bot.callback_query_handler(func=lambda callback: 'replace_date_' in callback.data)
 def callback_replace_class_date(callback):
-    date = callback.data.split('_')[3]
+    date = callback.data.split('_')[2]
     # получение направления
     cursor.execute("SELECT napr FROM classes WHERE date=?", (date,))
     data = cursor.fetchall()
@@ -107,16 +107,16 @@ def callback_replace_class_date(callback):
     for row in data:
         if row[0] not in buttons:
             buttons.append(row[0])
-            button = types.InlineKeyboardButton(text=row[0], callback_data='replace_class_napr_' + date + '_' + row[0])
+            button = types.InlineKeyboardButton(text=row[0], callback_data='replace_napr_' + date + '_' + row[0])
             keyboard.add(button)
 
     # отправка сообщения с выбором направления
     bot.send_message(callback.message.chat.id, "Какое направление вы хотите заменить?", reply_markup=keyboard)
 
 
-@bot.callback_query_handler(func=lambda callback: 'replace_class_napr_' in callback.data)
+@bot.callback_query_handler(func=lambda callback: 'replace_napr_' in callback.data)
 def callback_replace_class_napr(callback):
-    data, napr = callback.data.split('_')[3:]
+    data, napr = callback.data.split('_')[2:]
     cursor.execute("SELECT * FROM classes WHERE date=? AND napr=?", (data, napr))
     rows = cursor.fetchall()
     if len(rows) == 0:
