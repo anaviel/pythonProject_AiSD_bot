@@ -16,25 +16,65 @@ def edit_rasp(message):
     bot.send_message(message.chat.id, "Выберите действие:", reply_markup=markup_edit_rasp)
 
 
+# Словарь для хранения текущей страницы
+pages_delete = {}
+
+
 @bot.callback_query_handler(func=lambda callback: 'delete_a_training' in callback.data)
 def callback_delete_a_training(callback):
-    # получение всех дат и направлений занятий
+    bot.delete_message(callback.message.chat.id, callback.message.message_id)
+    # Получение всех дат и направлений занятий
     cursor.execute("SELECT date, napr FROM classes")
     data = cursor.fetchall()
-    # создание списка дат
+
+    # Создание списка дат
     dates = []
     for row in data:
         if row[0] not in dates:
             dates.append(row[0])
-    # создание клавиатуры с датами
-    keyboard = types.InlineKeyboardMarkup()
-    for date in dates:
+
+    # Получение текущей страницы пользователя
+    current_page = pages_delete.get(callback.from_user.id, 0)
+
+    # Количество элементов на одной странице
+    items_per_page = 5
+    start_index = current_page * items_per_page
+    end_index = start_index + items_per_page
+
+    # Формирование клавиатуры с датами на текущей странице
+    keyboard = types.InlineKeyboardMarkup(row_width=2)
+    for date in dates[start_index:end_index]:
         button = types.InlineKeyboardButton(text=date, callback_data='delete_date_' + date)
         keyboard.add(button)
 
-    # отправка сообщения с выбором даты
+    # Добавление кнопок "Вперёд" и "Назад"
+    if current_page > 0:
+        prev_button = types.InlineKeyboardButton(text='Назад', callback_data='prev_page_1')
+        keyboard.row(prev_button)
+    if end_index < len(dates):
+        next_button = types.InlineKeyboardButton(text='Вперёд', callback_data='next_page_1')
+        keyboard.row(next_button)
+
+    # Отправка сообщения с выбором даты
     bot.send_message(callback.message.chat.id, "Выберете дату, на которую хотели бы отменить занятие:",
                      reply_markup=keyboard)
+
+
+# Обработка нажатий кнопок "Вперёд" и "Назад"
+@bot.callback_query_handler(func=lambda callback: callback.data in ['prev_page_1', 'next_page_1'])
+def callback_pagination(callback):
+    user_id = callback.from_user.id
+    current_page = pages_delete.get(user_id, 0)
+
+    if callback.data == 'prev_page':
+        current_page = max(0, current_page - 1)
+    elif callback.data == 'next_page':
+        current_page += 1
+
+    pages_delete[user_id] = current_page
+
+    # Вызов функции, которая формирует и отправляет клавиатуру
+    callback_delete_a_training(callback)
 
 
 @bot.callback_query_handler(func=lambda callback: 'delete_date_' in callback.data)
@@ -73,25 +113,65 @@ def callback_delete_class_napr(callback):
     notice_of_class_cancellation(users, date, napr)
 
 
+# Словарь для хранения текущей страницы
+pages_replace = {}
+
+
 @bot.callback_query_handler(func=lambda callback: 'replace_a_training' in callback.data)
 def callback_replace_a_training(callback):
-    # получение всех дат и направлений занятий
+    bot.delete_message(callback.message.chat.id, callback.message.message_id)
+    # Получение всех дат и направлений занятий
     cursor.execute("SELECT date, napr FROM classes")
     data = cursor.fetchall()
-    # создание списка дат
+
+    # Создание списка дат
     dates = []
     for row in data:
         if row[0] not in dates:
             dates.append(row[0])
-    # создание клавиатуры с датами
-    keyboard = types.InlineKeyboardMarkup()
-    for date in dates:
+
+    # Получение текущей страницы пользователя
+    current_page = pages_replace.get(callback.from_user.id, 0)
+
+    # Количество элементов на одной странице
+    items_per_page = 5
+    start_index = current_page * items_per_page
+    end_index = start_index + items_per_page
+
+    # Формирование клавиатуры с датами на текущей странице
+    keyboard = types.InlineKeyboardMarkup(row_width=2)
+    for date in dates[start_index:end_index]:
         button = types.InlineKeyboardButton(text=date, callback_data='replace_date_' + date)
         keyboard.add(button)
 
-    # отправка сообщения с выбором даты
+    # Добавление кнопок "Вперёд" и "Назад"
+    if current_page > 0:
+        prev_button = types.InlineKeyboardButton(text='Назад', callback_data='prev_page_2')
+        keyboard.row(prev_button)
+    if end_index < len(dates):
+        next_button = types.InlineKeyboardButton(text='Вперёд', callback_data='next_page_2')
+        keyboard.row(next_button)
+
+    # Отправка сообщения с выбором даты
     bot.send_message(callback.message.chat.id, "Выберете дату, на которую хотели бы заменить занятие:",
                      reply_markup=keyboard)
+
+
+# Обработка нажатий кнопок "Вперёд" и "Назад"
+@bot.callback_query_handler(func=lambda callback: callback.data in ['prev_page_2', 'next_page_2'])
+def callback_pagination(callback):
+    user_id = callback.from_user.id
+    current_page = pages_replace.get(user_id, 0)
+
+    if callback.data == 'prev_page':
+        current_page = max(0, current_page - 1)
+    elif callback.data == 'next_page':
+        current_page += 1
+
+    pages_delete[user_id] = current_page
+
+    # Вызов функции, которая формирует и отправляет клавиатуру
+    callback_delete_a_training(callback)
 
 
 @bot.callback_query_handler(func=lambda callback: 'replace_date_' in callback.data)
@@ -156,5 +236,5 @@ def notice_of_class_change(users, new_data, new_napr, new_coach, data, napr):
     users = [user for user in users if user != "-"]
     for user in users:
         bot.send_message(user, f"Внимание! Занятие {data} - {napr}, к сожалению, заменено.\n"
-                                  f"Новое занятие состоится {new_data} - {new_napr}, тренер {new_coach}")
+                               f"Новое занятие состоится {new_data} - {new_napr}, тренер {new_coach}")
     cursor.close()

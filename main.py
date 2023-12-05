@@ -25,7 +25,7 @@ database.commit()
 # класс для админов
 class Admin:
     _admin_id_1: int = 1269188609
-    _admin_id_2: int = 961443903
+    _admin_id_2: int = 9614439031
     _admin_id_3: int = 54253780411
     admin_used: int
 

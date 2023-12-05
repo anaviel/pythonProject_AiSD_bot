@@ -7,6 +7,9 @@ from bot_start import bot
 database = sqlite3.connect('rasp.db', check_same_thread=False)
 cursor = database.cursor()
 
+# Словарь для хранения текущей страницы
+pages_registr = {}
+
 
 # функция, которая вызывается при нажатии пользователем на кнопку "Записаться"
 def sign_up_for_training(message, user_id=None):
@@ -17,18 +20,36 @@ def sign_up_for_training(message, user_id=None):
     sub = cursor.fetchone()
     if sub:
         if sub[0] > 0:
-            markup = types.InlineKeyboardMarkup()
             cursor.execute("SELECT DISTINCT date FROM classes")
             dates_ = cursor.fetchall()
             dates = []
-            for date in dates_:
-                for d in date:
-                    dates.append(d)
-            for date in dates:
+            for row in dates_:
+                if row[0] not in dates:
+                    dates.append(row[0])
+
+            # Получение текущей страницы пользователя
+            current_page = pages_registr.get(user_id, 0)
+
+            # Количество элементов на одной странице
+            items_per_page = 5
+            start_index = current_page * items_per_page
+            end_index = start_index + items_per_page
+
+            # Формирование клавиатуры с датами на текущей странице
+            keyboard = types.InlineKeyboardMarkup(row_width=2)
+            for date in dates[start_index:end_index]:
                 butt = 'date:' + date
-                button = types.InlineKeyboardButton(date, callback_data=butt)
-                markup.add(button)
-            bot.send_message(message.chat.id, 'Выберите день:', reply_markup=markup)
+                button = types.InlineKeyboardButton(text=date, callback_data=butt)
+                keyboard.add(button)
+
+            # Добавление кнопок "Вперёд" и "Назад"
+            if current_page > 0:
+                prev_button = types.InlineKeyboardButton(text='Назад', callback_data='prev_page_3')
+                keyboard.row(prev_button)
+            if end_index < len(dates):
+                next_button = types.InlineKeyboardButton(text='Вперёд', callback_data='next_page_3')
+                keyboard.row(next_button)
+            bot.send_message(message.chat.id, 'Выберите день:', reply_markup=keyboard)
             cursor.close()
         else:
             bot.send_message(message.chat.id,
@@ -36,6 +57,24 @@ def sign_up_for_training(message, user_id=None):
                              "Вам необходимо обратиться к администратору в студии для его пополнения.")
     else:
         bot.send_message(message.chat.id, "Произошла ошибка. К сожалению, невозможно записаться на занятие.")
+
+
+# Обработка нажатий кнопок "Вперёд" и "Назад"
+@bot.callback_query_handler(func=lambda callback: callback.data in ['prev_page_3', 'next_page_3'])
+def callback_pagination(callback):
+    bot.delete_message(callback.message.chat.id, callback.message.message_id)
+    user_id = callback.from_user.id
+    current_page = pages_registr.get(user_id, 0)
+
+    if callback.data == 'prev_page_3':
+        current_page = max(0, current_page - 1)
+    elif callback.data == 'next_page_3':
+        current_page += 1
+
+    pages_registr[user_id] = current_page
+
+    # Вызов функции, которая формирует и отправляет клавиатуру
+    sign_up_for_training(callback.message, user_id)
 
 
 @bot.callback_query_handler(func=lambda callback: 'date:' in callback.data)
