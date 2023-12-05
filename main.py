@@ -18,13 +18,7 @@ cursor.execute("SELECT * FROM subscription_inf")
 print(cursor.fetchall())
 cursor.execute("SELECT * FROM prob_classes")
 print(cursor.fetchall())
-'''
-cursor.execute("SELECT rowid FROM classes WHERE date = ? AND napr = ? AND visitor = ?",
-('29-12-2023', '14:00 Здоровая спина', '-'))
-row = cursor.fetchone()
-cursor.execute("UPDATE classes SET id = ?, visitor = ? WHERE rowid = ?",
-('7236401', 'Лопесс-Коссме Василиса Алексеевна', row[0]))
-'''
+
 database.commit()
 
 

@@ -1,7 +1,10 @@
 import telebot
 import threading
+from dotenv import load_dotenv, find_dotenv
+import os
 
-bot = telebot.TeleBot('6432420440:AAGQcNnopghQU9RWCRL_FwODBDUPIl9dTT8')
+load_dotenv(find_dotenv())
+bot = telebot.TeleBot(os.getenv('TOKEN'))
 
 
 # Функция для запуска бота в отдельном потоке

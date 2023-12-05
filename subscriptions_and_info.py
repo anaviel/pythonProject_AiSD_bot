@@ -1,18 +1,20 @@
 import sqlite3
-import os
 from telebot import types
 from bot_start import bot
 from registr_cancel_class import sign_up_for_training
 from tabulate import tabulate
 import matplotlib.pyplot as plt
 from io import BytesIO
+from dotenv import load_dotenv, find_dotenv
+import os
+
+load_dotenv(find_dotenv())
 
 database = sqlite3.connect('rasp.db', check_same_thread=False)
 cursor = database.cursor()
 
-
 # токен для ЮKassa
-payment_token = '381764678:TEST:71355'
+payment_token = os.getenv('PAYMENT_TOKEN')
 
 
 # функция, которая вызывается при нажатии пользователем на кнопку "Личный кабинет"
