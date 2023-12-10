@@ -1,11 +1,11 @@
-import sqlite3
-from telebot import types
+from sqlalchemy import create_engine, distinct
 from datetime import datetime
+from telebot import types
 from bot_start import bot
+from database_editing import Classes, SubscriptionInfo, Session
 
 
-database = sqlite3.connect('rasp.db', check_same_thread=False)
-cursor = database.cursor()
+engine = create_engine('sqlite:///rasp.db', echo=False)
 
 # Словарь для хранения текущей страницы
 pages_registr = {}
@@ -13,15 +13,15 @@ pages_registr = {}
 
 # функция, которая вызывается при нажатии пользователем на кнопку "Записаться"
 def sign_up_for_training(message, user_id=None):
-    cursor = database.cursor()
+    session = Session()
+
     if user_id is None:
         user_id = message.from_user.id
-    cursor.execute("SELECT subscription FROM subscription_inf WHERE id = ?", (user_id,))
-    sub = cursor.fetchone()
-    if sub:
-        if sub[0] > 0:
-            cursor.execute("SELECT DISTINCT date FROM classes")
-            dates_ = cursor.fetchall()
+    subscription = session.query(SubscriptionInfo.subscription).filter_by(id=user_id).scalar()
+
+    if subscription:
+        if subscription > 0:
+            dates_ = session.query(distinct(Classes.date)).all()
             dates = []
             for row in dates_:
                 if row[0] not in dates:
@@ -50,13 +50,14 @@ def sign_up_for_training(message, user_id=None):
                 next_button = types.InlineKeyboardButton(text='Вперёд', callback_data='next_page_3')
                 keyboard.row(next_button)
             bot.send_message(message.chat.id, 'Выберите день:', reply_markup=keyboard)
-            cursor.close()
         else:
             bot.send_message(message.chat.id,
                              "Вы не можете записаться на занятие, так как у вас закончился абонемент.\n"
                              "Вам необходимо обратиться к администратору в студии для его пополнения.")
     else:
         bot.send_message(message.chat.id, "Произошла ошибка. К сожалению, невозможно записаться на занятие.")
+
+    session.close()
 
 
 # Обработка нажатий кнопок "Вперёд" и "Назад"
@@ -113,100 +114,132 @@ def callback_back(callback):
 
 
 def rasp_show(date):
-    cursor = database.cursor()
-    # Вывод расписания
-    cursor.execute("SELECT DISTINCT napr, coach FROM classes WHERE date = ? AND id = '-' AND visitor = '-'", (date,))
-    rows_available = cursor.fetchall()
-    cursor.execute("SELECT DISTINCT napr, coach FROM classes WHERE date = ? AND id = '-' AND visitor != '-'", (date,))
-    rows_unavailable = cursor.fetchall()
+    session = Session()
+
+    now = datetime.now()
+
+    rows_available = session.query(distinct(Classes.napr), Classes.coach).filter(
+        Classes.date == str(date),
+        Classes.id == '-',
+        Classes.visitor == '-'
+    ).all()
+
+    full_classes = session.query(distinct(Classes.napr), Classes.coach).filter(
+        Classes.date == str(date),
+        Classes.id != '-',
+        Classes.visitor != '-'
+    ).all()
+
+    rows_unavailable = list(set(full_classes) - set(rows_available))
+
     rasp_list_available = []
     rasp_list_unavailable = []
-    now = datetime.now()
+
     for row in rows_available:
         napr, coach = row
         if now < datetime.strptime(f"{date} {napr[:5]}", "%d-%m-%Y %H:%M"):
             rasp_list_available.append(f"🤍{napr}, тренер: {coach}")
+
     for row in rows_unavailable:
         napr, coach = row
-        if now < datetime.strptime(napr[:5], "%H:%M"):
+        full_date = date + ' ' + napr[:5]
+        print(now, datetime.strptime(full_date, "%d-%m-%Y %H:%M"))
+        if now < datetime.strptime(full_date, "%d-%m-%Y %H:%M"):
             rasp_list_unavailable.append(f"🤍{napr}, тренер: {coach} (❌На данное занятие мест уже нет!)")
+
+    session.close()
+
     return rasp_list_available, rasp_list_unavailable
 
 
 @bot.callback_query_handler(func=lambda callback: 'reg_' in callback.data)
 def callback_reg(callback):
+    session = Session()
+
     bot.delete_message(callback.message.chat.id, callback.message.message_id)
-    cursor = database.cursor()
     user_id = callback.from_user.id
-    cursor.execute("SELECT visitor FROM subscription_inf WHERE id = ?", (user_id,))
-    name = ''.join(cursor.fetchone())
-    data_parts = callback.data.split('_')
-    date = data_parts[1]
-    napr = data_parts[2]
-    if is_user_enter(user_id, date, napr):
-        bot.send_message(callback.message.chat.id, f'Вы уже записаны на занятие {date} ({napr}).')
-    else:
-        cursor.execute("SELECT coach FROM classes WHERE date = ? AND napr = ?", (date, napr))
-        coach = ''.join(cursor.fetchone())
+
+    subscription = session.query(SubscriptionInfo).filter_by(id=user_id).first()
+
+    if subscription and subscription.subscription > 0:
+        data_parts = callback.data.split('_')
+        date = data_parts[1]
+        napr = data_parts[2]
+
+        coach = (session.query(Classes.coach).filter_by(date=date, napr=napr).first())[0]
+
         from database_editing import update_visitor
-        update_visitor(date, napr, coach, user_id, name, cursor, database)
-        cursor.execute("SELECT subscription FROM subscription_inf WHERE id = ? AND visitor = ?", (user_id, name))
-        result = cursor.fetchone()
-        new_subscription = result[0] - 1
-        cursor.execute("UPDATE subscription_inf SET subscription = ? WHERE id = ? AND visitor = ?", (new_subscription, user_id, name))
-        database.commit()
+        update_visitor(date, napr, coach, user_id, subscription.visitor)
+
+        result = session.query(SubscriptionInfo.subscription).filter_by(id=user_id,
+                                                                        visitor=subscription.visitor).scalar()
+        new_subscription = result - 1
+
+        session.query(SubscriptionInfo).filter_by(id=user_id, visitor=subscription.visitor).update({
+            SubscriptionInfo.subscription: new_subscription
+        })
+
+        session.commit()
+
         bot.send_message(callback.message.chat.id,
                          f'Вы успешно записаны {date} на {napr}.\nС баланса Вашего абонемента было списано одно занятие.')
+    else:
+        bot.send_message(callback.message.chat.id, 'У вас недостаточно занятий на абонементе.')
+
+    session.close()
 
 
 def is_user_enter(id, date, napr):
-    cursor = database.cursor()
-    cursor.execute("SELECT * FROM classes WHERE date = ? AND napr = ? AND id = ?", (date, napr, id))
-    result = cursor.fetchall()
-    cursor.close()
+    session = Session()
+
+    result = session.query(Classes).filter_by(date=date, napr=napr, id=id).all()
+
+    session.close()
+
     return len(result) > 0
 
 
 # функция, которая вызывается при нажатии пользователем на кнопку "Отметить запись"
 def cancel_registration_for_training(message):
+    session = Session()
+
     user_id = message.from_user.id
-    cursor.execute("SELECT date, napr FROM classes WHERE id = ?", (user_id,))
+    dates_napr_ = session.query(Classes.date, Classes.napr).filter_by(id=user_id).all()
     markup = types.InlineKeyboardMarkup()
-    dates_napr_ = cursor.fetchall()
-    dates_napr = []
-    for d_n in dates_napr_:
-        dates_napr.append(d_n)
-    for d_n in dates_napr:
-        date = d_n[0]
-        napr = d_n[1]
+
+    for date, napr in dates_napr_:
         butt = 'date-napr_' + date + '_' + napr
         name_butt = date + ' ' + napr
         button = types.InlineKeyboardButton(name_butt, callback_data=butt)
         markup.add(button)
+
     bot.send_message(message.chat.id, 'Какое направление хотите отменить?', reply_markup=markup)
+
+    session.close()
 
 
 @bot.callback_query_handler(func=lambda callback: 'date-napr_' in callback.data)
 def callback_cancel(callback):
+    session = Session()
+
     user_id = callback.from_user.id
-    cursor.execute("SELECT visitor FROM subscription_inf WHERE id = ?", (user_id,))
-    name = ''.join(cursor.fetchone())
+    name = session.query(SubscriptionInfo.visitor).filter_by(id=user_id).scalar()
     date_napr = callback.data.split('_')
     date = date_napr[1]
     napr = date_napr[2]
-    cursor.execute("UPDATE classes SET id = '-', visitor = '-' WHERE date = ? AND napr = ?",
-                   (date, napr))
-    cursor.execute("SELECT subscription FROM subscription_inf WHERE id = ? AND visitor = ?",
-                   (user_id, name))
-    result = cursor.fetchone()
-    new_subscription = result[0] + 1
-    cursor.execute("UPDATE subscription_inf SET subscription = ? WHERE id = ? AND visitor = ?",
-                   (new_subscription, user_id, name))
-    database.commit()
+    session.query(Classes).filter_by(date=date, napr=napr).update({
+        Classes.id: '-',
+        Classes.visitor: '-'
+    })
+    result = session.query(SubscriptionInfo.subscription).filter_by(id=user_id, visitor=name).scalar()
+    new_subscription = result + 1
+    session.query(SubscriptionInfo).filter_by(id=user_id, visitor=name).update({
+        SubscriptionInfo.subscription: new_subscription
+    })
+    session.commit()
     bot.send_message(callback.message.chat.id,
                      f'Запись на {date}, "{napr}" успешно отменена.'
                      f'\nНа баланс Вашего абонемента было возвращено одно занятие.')
-    cursor.execute("SELECT * FROM classes")
 
-
+    session.close()
 

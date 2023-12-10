@@ -1,9 +1,8 @@
-import sqlite3
 from bot_start import bot
+from sqlalchemy import create_engine
+from database_editing import SubscriptionInfo, Session
 
-
-database = sqlite3.connect('rasp.db', check_same_thread=False)
-cursor = database.cursor()
+engine = create_engine('sqlite:///rasp.db', echo=False)
 
 
 def authorization(message):
@@ -26,44 +25,55 @@ def check_visitor(message):
 
 
 def add_subscript(message):
+    session = Session()
+
     # Добавляем в таблицу с абонементами запись о новом пользователе
     user_id = message.from_user.id
     phone_number = message.text.split(' ')[0]
     visitor_name = ' '.join(message.text.split(' ')[1:])
     prob_inf = '-'
     subscription_ = 0
-    cursor.execute("INSERT INTO subscription_inf "
-                   "(id, phone_number, visitor, prob_inf, subscription) VALUES (?, ?, ?, ?, ?)",
-                   (user_id, phone_number, visitor_name, prob_inf, subscription_))
-    database.commit()
+    # Используем ORM для добавления записи
+    new_subscription = SubscriptionInfo(id=user_id, phone_number=phone_number, visitor=visitor_name,
+                                        prob_inf=prob_inf, subscription=subscription_)
+    session.add(new_subscription)
+    session.commit()
     from main import NewUser
     new_user = NewUser(user_id)
     # показываем клавиатуру для нововго пользователя
     new_user.keyboard_new_user(message)
 
+    session.close()
+
 
 def check_number(message):
     # Авторизация по номеру
+    session = Session()
+
     user_id = message.from_user.id
     phone_number = message.text
-    cursor.execute("SELECT visitor FROM subscription_inf WHERE phone_number = ?", (phone_number,))
-    name_visitor = ''.join(cursor.fetchone())
-    if name_visitor:
-        cursor.execute("SELECT id FROM subscription_inf WHERE visitor = ? AND phone_number = ?",
-                       (name_visitor, phone_number))
-        id_ = ''.join(cursor.fetchone())
-        if id_ != str(user_id):
+
+    # Используем ORM для выполнения SQL-запросов
+    subscription_info = session.query(SubscriptionInfo).filter(SubscriptionInfo.phone_number
+                                                               == str(phone_number)).first()
+
+    if subscription_info:
+        name_visitor = subscription_info.visitor
+
+        if subscription_info.id != str(user_id):
             bot.send_message(message.chat.id, f'Ваш номер существует в базе, но Ваш аккаунт к нему не привязан. '
                                               f'Обратитесь к администратору за дальнейшей инструкцией.')
+            return
+
         bot.send_message(message.chat.id, f'Здравствуйте, {name_visitor}! Вы успешно авторизовались.')
-        cursor.execute("SELECT prob_inf FROM subscription_inf WHERE id = ?",
-                       (user_id,))
-        from main import User, NewUser
-        if ''.join(cursor.fetchone()) == '+':
+
+        if subscription_info.prob_inf == '+':
+            from main import User
             user = User(user_id)
             # показываем клавиатуру для пользователя
             user.keyboard_user(message)
         else:
+            from main import NewUser
             new_user = NewUser(user_id)
             # показываем клавиатуру для нового пользователя
             new_user.keyboard_new_user(message)
@@ -72,3 +82,5 @@ def check_number(message):
                                           'данных или обратитесь к службе поддержки.')
         from main import start
         start()
+
+    session.close()

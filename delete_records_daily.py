@@ -1,27 +1,33 @@
 import asyncio
-import sqlite3
-from threading import Thread
 from datetime import datetime, timedelta
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from threading import Thread
+from database_editing import Classes
 
-database = sqlite3.connect('rasp.db', check_same_thread=False)
-cursor = database.cursor()
+engine = create_engine('sqlite:///rasp.db', echo=False)
+Session = sessionmaker(bind=engine)
 
 
 # Функция для удаления записей, которые были три недели назад
 async def delete_records_daily():
+    session = Session()
+
     three_weeks_ago = datetime.now() - timedelta(weeks=4)
-    target_date = three_weeks_ago.date().strftime("%d-%m-%Y")
+    target_date = three_weeks_ago.date()
 
     # Удаление записей с заданной датой
-    cursor.execute(f"DELETE FROM classes WHERE date = '{target_date}'")
-    database.commit()
+    session.query(Classes).filter(Classes.date == target_date).delete()
+    session.commit()
+
+    session.close()
 
 
 # Функция для запуска задачи удаления записей каждый день в 23:00
 async def schedule_daily_task():
     while True:
         now = datetime.now()
-        target_time = now.replace(hour=23, minute=59, second=0, microsecond=0)
+        target_time = now.replace(hour=23, minute=0, second=0, microsecond=0)
 
         # Если текущее время больше или равно заданному времени, запускается удаление записей
         if now >= target_time:
@@ -40,5 +46,4 @@ def run_asyncio_loop():
 
 # Запуск цикла событий asyncio в отдельном потоке
 thread = Thread(target=run_asyncio_loop)
-
 thread.start()

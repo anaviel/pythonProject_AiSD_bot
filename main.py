@@ -1,28 +1,31 @@
-from database_editing import *
-from authorization_process import *
-from rasp_editing import *
-from registr_cancel_class import *
-from subscriptions_and_info import *
-from bot_start import *
-from delete_records_daily import *
+from sqlalchemy import text
+from telebot import types
+from database_editing import insert_rasp, Session
+from authorization_process import authorization
+from rasp_editing import edit_rasp
+from registr_cancel_class import cancel_registration_for_training, sign_up_for_training
+from subscriptions_and_info import subscription, display_tables, dashboard, update_price_list, personal_account, \
+    trial_training, help_
+from bot_start import bot
 from dotenv import load_dotenv, find_dotenv
 import os
 
 load_dotenv(find_dotenv())
 
-database = sqlite3.connect('rasp.db', check_same_thread=False)
-cursor = database.cursor()
-
+session = Session()
 
 # Вывод таблицы с расписанием и абонементами
-cursor.execute("SELECT * FROM classes")
-print(cursor.fetchall())
-cursor.execute("SELECT * FROM subscription_inf")
-print(cursor.fetchall())
-cursor.execute("SELECT * FROM prob_classes")
-print(cursor.fetchall())
+classes_data = session.execute(text("SELECT * FROM classes")).fetchall()
+for i in classes_data:
+    print(i.date, i.napr, i.coach, i.id, i.visitor)
+classes_data = session.execute(text("SELECT * FROM prob_classes")).fetchall()
+for i in classes_data:
+    print(i.date_today, i.id, i.visitor)
+classes_data = session.execute(text("SELECT * FROM subscription_inf")).fetchall()
+for i in classes_data:
+    print(i.id, i.phone_number, i.visitor, i.prob_inf, i.subscription)
 
-database.commit()
+session.close()
 
 
 # класс для админов
@@ -113,7 +116,7 @@ class User:
     # "Помощь"
     @staticmethod
     def help(message):
-        help(message)
+        help_(message)
 
     # клавиатура для пользователя
     @staticmethod
