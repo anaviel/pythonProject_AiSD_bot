@@ -1,38 +1,38 @@
-from sqlalchemy import text
-from telebot import types
-from database_editing import insert_rasp, Session
-from authorization_process import authorization
-from rasp_editing import edit_rasp
-from registr_cancel_class import cancel_registration_for_training, sign_up_for_training
-from subscriptions_and_info import subscription, display_tables, dashboard, update_price_list, personal_account, \
-    trial_training, help_
-from bot_start import bot
-from dotenv import load_dotenv, find_dotenv
-import os
+from database_editing import *
+from authorization_process import *
+from rasp_editing import *
+from registr_cancel_class import *
+from subscriptions_and_info import *
+from bot_start import *
+from delete_records_daily import *
 
-load_dotenv(find_dotenv())
 
-session = Session()
+database = sqlite3.connect('rasp.db', check_same_thread=False)
+cursor = database.cursor()
+
 
 # Вывод таблицы с расписанием и абонементами
-classes_data = session.execute(text("SELECT * FROM classes")).fetchall()
-for i in classes_data:
-    print(i.date, i.napr, i.coach, i.id, i.visitor)
-classes_data = session.execute(text("SELECT * FROM prob_classes")).fetchall()
-for i in classes_data:
-    print(i.date_today, i.id, i.visitor)
-classes_data = session.execute(text("SELECT * FROM subscription_inf")).fetchall()
-for i in classes_data:
-    print(i.id, i.phone_number, i.visitor, i.prob_inf, i.subscription)
-
-session.close()
+cursor.execute("SELECT * FROM classes")
+print(cursor.fetchall())
+cursor.execute("SELECT * FROM subscription_inf")
+print(cursor.fetchall())
+cursor.execute("SELECT * FROM prob_classes")
+print(cursor.fetchall())
+'''
+cursor.execute("SELECT rowid FROM classes WHERE date = ? AND napr = ? AND visitor = ?",
+('29-12-2023', '14:00 Здоровая спина', '-'))
+row = cursor.fetchone()
+cursor.execute("UPDATE classes SET id = ?, visitor = ? WHERE rowid = ?",
+('7236401', 'Лопесс-Коссме Василиса Алексеевна', row[0]))
+'''
+database.commit()
 
 
 # класс для админов
 class Admin:
-    _admin_id_1: int = int(os.getenv('ADMIN_ID_1'))
-    _admin_id_2: int = int(os.getenv('ADMIN_ID_2'))
-    _admin_id_3: int = int(os.getenv('ADMIN_ID_3'))
+    _admin_id_1: int = 1269188609
+    _admin_id_2: int = 961443903
+    _admin_id_3: int = 54253780411
     admin_used: int
 
     def __init__(self, user_id):
@@ -116,7 +116,7 @@ class User:
     # "Помощь"
     @staticmethod
     def help(message):
-        help_(message)
+        help(message)
 
     # клавиатура для пользователя
     @staticmethod
