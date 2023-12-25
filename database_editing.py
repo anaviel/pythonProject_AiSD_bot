@@ -1,50 +1,54 @@
 import sqlite3
 from datetime import datetime
+from sqlalchemy import create_engine, Column, String
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker
 
-database = sqlite3.connect('rasp.db', check_same_thread=False)
-cursor = database.cursor()
-
-
-def rasp_create():
-    # Создание таблицы с расписанием
-    cursor.execute("""CREATE TABLE IF NOT EXISTS classes (
-        date text,
-        napr text,
-        coach text,
-        id text,
-        visitor text
-    )""")
+engine = create_engine('sqlite:///rasp.db', echo=False)
+Base = declarative_base()
+Session = sessionmaker(bind=engine)
 
 
-def prob_create():
-    # Создание таблицы с оплаченными пробными занятиями
-    cursor.execute("""CREATE TABLE IF NOT EXISTS prob_classes (
-        date_today text,
-        id text,
-        visitor text
-    )""")
+class Classes(Base):
+    __tablename__ = 'classes'
+    date = Column(String)
+    napr = Column(String)
+    coach = Column(String)
+    id = Column(String, primary_key=True)
+    visitor = Column(String)
 
 
-def subscription_create():
-    # Создание таблицы с информацией об абонементах
-    cursor.execute("""CREATE TABLE IF NOT EXISTS subscription_inf (
-            id text,
-            phone_number text,
-            visitor text,
-            prob_inf text,
-            subscription int
-        )""")
+class ProbClasses(Base):
+    __tablename__ = 'prob_classes'
+    date_today = Column(String)
+    id = Column(String, primary_key=True)
+    visitor = Column(String)
+
+
+class SubscriptionInfo(Base):
+    __tablename__ = 'subscription_inf'
+    id = Column(String, primary_key=True)
+    phone_number = Column(String)
+    visitor = Column(String)
+    prob_inf = Column(String)
+    subscription = Column(String)
 
 
 def insert_rasp(date, napr, coach, id='-', visitor='-'):
     # Добавление расписания
-    cursor.execute("INSERT INTO classes (date, napr, coach, id, visitor) VALUES (?, ?, ?, ?, ?)",
-                   (date, napr, coach, id, visitor))
-    database.commit()
+    session = Session()
+
+    new_class = Classes(date=date, napr=napr, coach=coach, id=id, visitor=visitor)
+    session.add(new_class)
+    session.commit()
+
+    session.close()
 
 
-def update_visitor(date, napr, coach, id, visitor, cursor, database):
+def update_visitor(date, napr, coach, id, visitor):
     # Замена 4-го параметра посетилеля на реального человека, когда он записывается
+    database = sqlite3.connect('rasp.db', check_same_thread=False)
+    cursor = database.cursor()
     cursor.execute("SELECT rowid FROM classes WHERE date = ? AND napr = ? AND coach = ? AND id = '-' AND visitor = '-'",
                    (date, napr, coach))
     row = cursor.fetchone()
@@ -56,9 +60,14 @@ def update_visitor(date, napr, coach, id, visitor, cursor, database):
 
 def prob_classes(user_id):
     # Добавление информации о записи на пробное занятие в таблицу
-    cursor.execute("SELECT visitor FROM subscription_inf WHERE id = ?", (user_id,))
-    visitor = ''.join(cursor.fetchone())
-    date_today = datetime.now().date()
-    cursor.execute("INSERT INTO prob_classes (date_today, id, visitor) VALUES (?, ?, ?)",
-                   (date_today, user_id, visitor))
-    database.commit()
+    session = Session()
+
+    subscription_info = session.query(SubscriptionInfo.visitor).filter(SubscriptionInfo.id == str(user_id)).first()
+    if subscription_info:
+        visitor = subscription_info[0]
+        date_today = datetime.now().date()
+        new_prob_class = ProbClasses(date_today=date_today, id=user_id, visitor=visitor)
+        session.add(new_prob_class)
+        session.commit()
+
+    session.close()

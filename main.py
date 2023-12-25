@@ -5,10 +5,7 @@ from registr_cancel_class import *
 from subscriptions_and_info import *
 from bot_start import *
 from delete_records_daily import *
-from dotenv import load_dotenv, find_dotenv
-import os
 
-load_dotenv(find_dotenv())
 
 database = sqlite3.connect('rasp.db', check_same_thread=False)
 cursor = database.cursor()
@@ -21,15 +18,21 @@ cursor.execute("SELECT * FROM subscription_inf")
 print(cursor.fetchall())
 cursor.execute("SELECT * FROM prob_classes")
 print(cursor.fetchall())
-
+'''
+cursor.execute("SELECT rowid FROM classes WHERE date = ? AND napr = ? AND visitor = ?",
+('29-12-2023', '14:00 Здоровая спина', '-'))
+row = cursor.fetchone()
+cursor.execute("UPDATE classes SET id = ?, visitor = ? WHERE rowid = ?",
+('7236401', 'Лопесс-Коссме Василиса Алексеевна', row[0]))
+'''
 database.commit()
 
 
 # класс для админов
 class Admin:
-    _admin_id_1: int = int(os.getenv('ADMIN_ID_1'))
-    _admin_id_2: int = int(os.getenv('ADMIN_ID_2'))
-    _admin_id_3: int = int(os.getenv('ADMIN_ID_3'))
+    _admin_id_1: int = 1269188609
+    _admin_id_2: int = 961443903
+    _admin_id_3: int = 54253780411
     admin_used: int
 
     def __init__(self, user_id):
